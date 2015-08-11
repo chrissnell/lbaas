@@ -6,16 +6,18 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/chrissnell/lbaas/backends/f5"
 	"github.com/chrissnell/lbaas/config"
 	"github.com/chrissnell/lbaas/controller"
+	"github.com/chrissnell/lbaas/etcd"
+	"github.com/chrissnell/lbaas/loadbalancer"
 	"github.com/chrissnell/lbaas/model"
 )
 
 // Service contains our configuration and runtime objects
 type Service struct {
 	Config config.Config
-	f5     *f5.Device
+	LB     *loadbalancer.LoadBalancer
+	etcd   *etcd.Etcd
 	api    *controller.Controller
 	model  *model.Model
 }
@@ -32,6 +34,10 @@ func New(filename string) *Service {
 	}
 	s.Config = cfg
 
+	// Open an etcd client
+	s.etcd = etcd.New(s.Config.Etcd.Hostname, s.Config.Etcd.Port)
+	defer s.etcd.Close()
+
 	// Initialize the data model
 	// s.model = model.New(s.db)
 
@@ -45,7 +51,7 @@ func New(filename string) *Service {
 func (s *Service) Listen() {
 
 	// Set up our API endpoint router
-	log.Fatal(http.ListenAndServe(s.Config.Service.ClickListenAddr, s.api.ClickRouter()))
+	log.Fatal(http.ListenAndServe(s.Config.Service.APIListenAddr, s.api.APIRouter()))
 }
 
 // Close will shut down the service
