@@ -37,6 +37,12 @@ func (f F5) GetVIP(string) (*loadbalancer.VIP, error) {
 	return v, err
 }
 
+func (f F5) GetAllVIPs() ([]*loadbalancer.VIP, error) {
+	var err error
+	var v []*loadbalancer.VIP
+	return v, err
+}
+
 func (f F5) AddPoolMember(*loadbalancer.PoolMember) error {
 	var err error
 	return err

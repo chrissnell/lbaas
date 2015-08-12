@@ -1,11 +1,11 @@
 package loadbalancer
 
 type VIP struct {
-	name             string
-	frontendIP       string
-	frontendPort     uint8
-	frontendProtocol string
-	poolMembers      []PoolMember
+	Name             string
+	FrontendIP       string
+	FrontendPort     uint8
+	FrontendProtocol string
+	PoolMembers      []PoolMember
 }
 
 type PoolMember struct {
@@ -20,6 +20,7 @@ type LoadBalancer interface {
 	UpdateVIP(*VIP) error
 	DeleteVIP(string) error
 	GetVIP(string) (*VIP, error)
+	GetAllVIPs() ([]*VIP, error)
 	AddPoolMember(*PoolMember) error
 	DeletePoolMember(string) error
 	DeleteAllPoolMembers() error

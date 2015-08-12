@@ -62,6 +62,7 @@ func New(filename string) *Service {
 // Listen will start the HTTP listeners for the API router.
 func (s *Service) Listen() {
 
+	log.Println("Listening on ", s.Config.Service.APIListenAddr)
 	// Set up our API endpoint router
 	log.Fatal(http.ListenAndServe(s.Config.Service.APIListenAddr, s.api.APIRouter()))
 }
