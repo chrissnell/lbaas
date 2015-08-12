@@ -10,11 +10,11 @@ import (
 type Controller struct {
 	c  config.Config
 	m  *model.Model
-	lb *loadbalancer.LoadBalancer
+	lb loadbalancer.LoadBalancer
 }
 
 // New will create a new Controller
-func New(config config.Config, model *model.Model, lb *loadbalancer.LoadBalancer) *Controller {
+func New(config config.Config, model *model.Model, lb loadbalancer.LoadBalancer) *Controller {
 	a := &Controller{
 		c:  config,
 		m:  model,
@@ -27,7 +27,7 @@ func New(config config.Config, model *model.Model, lb *loadbalancer.LoadBalancer
 func (a *Controller) APIRouter() *mux.Router {
 	apiRouter := mux.NewRouter().StrictSlash(true)
 
-	// add some apiRouter.HandleFunc()'s here
+	// add some apiRouter.HandleFunc
 
 	return apiRouter
 }

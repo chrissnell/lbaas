@@ -9,7 +9,7 @@ type Model struct {
 	e *etcd.Client
 }
 
-// New creates a new data model with the given DB connection handle
+// New creates a new data model with a new DB connection
 func New(e *etcd.Client) *Model {
 	m := &Model{
 		e: e,
