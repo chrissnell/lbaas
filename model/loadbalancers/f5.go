@@ -1,7 +1,7 @@
 package f5
 
 import (
-	"github.com/chrissnell/lbaas/loadbalancer"
+	"github.com/chrissnell/lbaas/model"
 )
 
 type F5 struct {
@@ -16,12 +16,12 @@ func New() F5 {
 	return f
 }
 
-func (f F5) CreateVIP(*loadbalancer.VIP) error {
+func (f F5) CreateVIP(*model.VIP) error {
 	var err error
 	return err
 }
 
-func (f F5) UpdateVIP(*loadbalancer.VIP) error {
+func (f F5) UpdateVIP(*model.VIP) error {
 	var err error
 	return err
 }
@@ -31,19 +31,19 @@ func (f F5) DeleteVIP(string) error {
 	return err
 }
 
-func (f F5) GetVIP(string) (*loadbalancer.VIP, error) {
+func (f F5) GetVIP(string) (*model.VIP, error) {
 	var err error
-	var v *loadbalancer.VIP
+	var v *model.VIP
 	return v, err
 }
 
-func (f F5) GetAllVIPs() ([]*loadbalancer.VIP, error) {
+func (f F5) GetAllVIPs() ([]*model.VIP, error) {
 	var err error
-	var v []*loadbalancer.VIP
+	var v []*model.VIP
 	return v, err
 }
 
-func (f F5) AddPoolMember(*loadbalancer.PoolMember) error {
+func (f F5) AddPoolMembers([]*model.PoolMember) error {
 	var err error
 	return err
 }
@@ -58,8 +58,8 @@ func (f F5) DeleteAllPoolMembers() error {
 	return err
 }
 
-func (f F5) GetPoolMembers() ([]*loadbalancer.PoolMember, error) {
+func (f F5) GetPoolMembers() ([]*model.PoolMember, error) {
 	var err error
-	var p []*loadbalancer.PoolMember
+	var p []*model.PoolMember
 	return p, err
 }

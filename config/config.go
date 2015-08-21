@@ -31,6 +31,7 @@ type F5Config struct {
 type EtcdConfig struct {
 	Hostname string `yaml:"hostname"`
 	Port     string `yaml:"port"`
+	BasePath string `yaml:"basepath"`
 }
 
 // New creates an new config object from the given filename.

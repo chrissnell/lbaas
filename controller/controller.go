@@ -3,24 +3,21 @@ package controller
 import (
 	"github.com/chrissnell/lbaas/config"
 	"github.com/chrissnell/lbaas/controller/restapi"
-	"github.com/chrissnell/lbaas/loadbalancer"
 	"github.com/chrissnell/lbaas/model"
 	"github.com/gorilla/mux"
 )
 
 type Controller struct {
-	c  config.Config
-	m  *model.Model
-	lb loadbalancer.LoadBalancer
-	r  *restapi.RestAPI
+	c config.Config
+	m *model.Model
+	r *restapi.RestAPI
 }
 
 // New will create a new Controller
-func New(config config.Config, model *model.Model, lb loadbalancer.LoadBalancer) *Controller {
+func New(config config.Config, model *model.Model) *Controller {
 	a := &Controller{
-		c:  config,
-		m:  model,
-		lb: lb,
+		c: config,
+		m: model,
 	}
 	return a
 }
@@ -37,7 +34,7 @@ func (a *Controller) APIRouter() *mux.Router {
 
 	apiRouter.HandleFunc("/pool", a.r.CreatePool).Methods("POST")
 	apiRouter.HandleFunc("/pool", a.r.DeletePool).Methods("DELETE")
-	apiRouter.HandleFunc("/pool/{poolid}/members", a.r.AddPoolMember).Methods("PUT")
+	apiRouter.HandleFunc("/pool/{poolid}/members", a.r.AddPoolMembers).Methods("PUT")
 	apiRouter.HandleFunc("/pool/{poolid}/members/{member}", a.r.DeletePoolMember).Methods("DELETE")
 	apiRouter.HandleFunc("/pool/{poolid}/members", a.r.GetAllPoolMembers).Methods("GET")
 	apiRouter.HandleFunc("/pool/{poolid}/members", a.r.DeleteAllPoolMembers).Methods("DELETE")

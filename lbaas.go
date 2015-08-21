@@ -9,9 +9,8 @@ import (
 
 	"github.com/chrissnell/lbaas/config"
 	"github.com/chrissnell/lbaas/controller"
-	"github.com/chrissnell/lbaas/loadbalancer"
-	"github.com/chrissnell/lbaas/loadbalancer/f5"
 	"github.com/chrissnell/lbaas/model"
+	"github.com/chrissnell/lbaas/model/loadbalancers"
 
 	"github.com/coreos/go-etcd/etcd"
 )
@@ -19,7 +18,6 @@ import (
 // Service contains our configuration and runtime objects
 type Service struct {
 	Config     config.Config
-	LB         loadbalancer.LoadBalancer
 	etcdclient *etcd.Client
 	api        *controller.Controller
 	model      *model.Model
@@ -44,17 +42,16 @@ func New(filename string) *Service {
 
 	defer s.etcdclient.Close()
 
-	// Initialize our load balancer based on our configured type
+	// Initialize our model with load balancer based on our configured type
 	switch s.Config.LoadBalancer.Kind {
 	case "f5":
-		s.LB = f5.New()
+		s.model = model.New(s.etcdclient, f5.New(), s.Config)
+	default:
+		s.model = model.New(s.etcdclient, f5.New(), s.Config)
 	}
 
-	// Initialize the data model
-	s.model = model.New(s.etcdclient)
-
 	// Initialize the Controller
-	s.api = controller.New(s.Config, s.model, s.LB)
+	s.api = controller.New(s.Config, s.model)
 
 	return s
 }

@@ -10,3 +10,4 @@ load_balancer:
 etcd:
   hostname: 127.0.0.1
   port: 4001
+  basepath: /lbaas
