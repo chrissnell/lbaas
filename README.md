@@ -2,11 +2,7 @@
 RESTful service to provide generic VIP management for a variety of load balancer backends
 
 
-# Data Flow
-Assumptions
------------
-1. One or more nodes are configured in Kubernetes
-2. A service has been set up Kubernetes and there is a working NodePort fronting it
+# ```lbaasd``` operation
 
 On ```lbaasd``` process startup
 ------------------------------
