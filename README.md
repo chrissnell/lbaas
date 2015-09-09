@@ -11,10 +11,11 @@ Assumptions
 On ```lbaasd``` process startup
 ------------------------------
 1. ```lbaasd``` launches the following engines
- * K8S nodes watcher
- * K8S services watcher
- * Load Balancer updater
- * IP registration renewal
+ * K8S nodes watcher - Responsible for polling K8S node objects
+ * K8S services watcher - Responsible for polling K8S service objects
+ * Load Balancer updater - Responsible for communicating with load balancer
+ * IP registration renewal - Responible for maintaining leases with ```cidrd```
+ 
 2. ```lbaasd``` begins listening on the API service port
 
 The ```lbaasd``` K8S nodes watcher engine
