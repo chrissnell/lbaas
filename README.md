@@ -37,6 +37,7 @@ The ```lbaasd``` load balancer update engine
 5. Subsequently, the load balancer updaate engine listens on channels for update events from the nodes and services engines and updates VIPs as necessary.
 
 The ```lbaasd``` IP renewal engine
+-------------------------------------
 1. On startup, the IP registration renewal engine reads a list of IP UUIDs from etcd and then issues a RENEW command to cidrd for each UUID.   
 2. It repeats this process every N minutes
 
