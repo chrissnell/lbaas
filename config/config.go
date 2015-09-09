@@ -10,11 +10,17 @@ type Config struct {
 	Service      ServiceConfig      `yaml:"service"`
 	LoadBalancer LoadBalancerConfig `yaml:"load_balancer"`
 	Etcd         EtcdConfig         `yaml:"etcd"`
+	Kubernetes   KubernetesConfig   `yaml:"kubernetes"`
 }
 
 type ServiceConfig struct {
-	APIListenAddr           string `yaml:"api_listen_address"`
-	KubernetesAPIListenAddr string `yaml:"kubernetes_api_listen_address"`
+	APIListenAddr string `yaml:"api_listen_address"`
+}
+
+type KubernetesConfig struct {
+	APIendpoint string `yaml:"api_endpoint"`
+	Username    string `yaml:"username"`
+	Password    string `yaml:"password"`
 }
 
 type LoadBalancerConfig struct {

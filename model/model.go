@@ -25,15 +25,15 @@ type LoadBalancer interface {
 // Model contains the data model with the associated etcd Client
 type Model struct {
 	e  *etcd.Client
-	lb LoadBalancer
 	c  config.Config
+	LB LoadBalancer
 }
 
 // New creates a new data model with a new DB connection
 func New(e *etcd.Client, lb LoadBalancer, c config.Config) *Model {
 	m := &Model{
 		e:  e,
-		lb: lb,
+		LB: lb.(LoadBalancer),
 		c:  c,
 	}
 

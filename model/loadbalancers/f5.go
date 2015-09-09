@@ -1,6 +1,7 @@
 package f5
 
 import (
+	"errors"
 	"github.com/chrissnell/lbaas/model"
 )
 
@@ -33,8 +34,10 @@ func (f F5) DeleteVIP(string) error {
 
 func (f F5) GetVIP(string) (*model.VIP, error) {
 	var err error
-	var v *model.VIP
-	return v, err
+	var v model.VIP
+	v.Name = "My Test VIP"
+	err = errors.New("This is broken")
+	return &v, err
 }
 
 func (f F5) GetAllVIPs() ([]*model.VIP, error) {

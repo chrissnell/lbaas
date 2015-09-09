@@ -13,13 +13,14 @@ import (
 	"github.com/chrissnell/lbaas/model/loadbalancers"
 
 	"github.com/coreos/go-etcd/etcd"
+	"github.com/emicklei/go-restful"
 )
 
 // Service contains our configuration and runtime objects
 type Service struct {
 	Config     config.Config
 	etcdclient *etcd.Client
-	api        *controller.Controller
+	controller *controller.Controller
 	model      *model.Model
 }
 
@@ -51,7 +52,7 @@ func New(filename string) *Service {
 	}
 
 	// Initialize the Controller
-	s.api = controller.New(s.Config, s.model)
+	s.controller = controller.New(s.Config, s.model)
 
 	return s
 }
@@ -59,9 +60,11 @@ func New(filename string) *Service {
 // Listen will start the HTTP listeners for the API router.
 func (s *Service) Listen() {
 
+	restful.Add(s.controller.WS)
+
 	log.Println("Listening on ", s.Config.Service.APIListenAddr)
 	// Set up our API endpoint router
-	log.Fatal(http.ListenAndServe(s.Config.Service.APIListenAddr, s.api.APIRouter()))
+	log.Fatal(http.ListenAndServe(s.Config.Service.APIListenAddr, nil))
 }
 
 // Close will shut down the service

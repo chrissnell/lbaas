@@ -1,68 +1,68 @@
 package restapi
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
+	"github.com/chrissnell/lbaas/config"
+	"github.com/chrissnell/lbaas/model"
 	"net/http"
 
-	"github.com/chrissnell/lbaas/model"
-	"github.com/gorilla/mux"
+	"github.com/emicklei/go-restful"
 )
 
 type RestAPI struct {
+	c config.Config
+	m *model.Model
 }
 
-func (ra *RestAPI) CreateVIP(w http.ResponseWriter, r *http.Request) {
-}
-
-func (ra *RestAPI) DeleteVIP(w http.ResponseWriter, r *http.Request) {
-}
-
-func (ra *RestAPI) UpdateVIP(w http.ResponseWriter, r *http.Request) {
-}
-
-func (ra *RestAPI) GetVIP(w http.ResponseWriter, r *http.Request) {
-	var res model.VIP
-
-	vars := mux.Vars(r)
-	vipid := vars["vipid"]
-
-	res, err := model.GetVIP(vipid)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(422) // unprocessable entity
-		res.Name = fmt.Sprint("VIP ", vipid, " does not exist")
-
-		log.Printf("struct: %+v\n", res)
-		json.NewEncoder(w).Encode(res)
+func New(config config.Config, model *model.Model) *RestAPI {
+	ra := &RestAPI{
+		c: config,
+		m: model,
 	}
 
-	log.Println("GOT", vipid)
-
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(200)
-	log.Printf("struct: %+v\n", res)
-	json.NewEncoder(w).Encode(res)
+	return ra
 }
 
-func (ra *RestAPI) GetAllVIPs(w http.ResponseWriter, r *http.Request) {
+func (ra *RestAPI) CreateVIP(req *restful.Request, resp *restful.Response) {
 }
 
-func (ra *RestAPI) CreatePool(w http.ResponseWriter, r *http.Request) {
+func (ra *RestAPI) DeleteVIP(req *restful.Request, resp *restful.Response) {
 }
 
-func (ra *RestAPI) DeletePool(w http.ResponseWriter, r *http.Request) {
+func (ra *RestAPI) UpdateVIP(req *restful.Request, resp *restful.Response) {
 }
 
-func (ra *RestAPI) AddPoolMembers(w http.ResponseWriter, r *http.Request) {
+func (ra *RestAPI) GetVIP(req *restful.Request, resp *restful.Response) {
+
+	vipid := req.PathParameter("vipid")
+
+	res, err := ra.m.LB.GetVIP(vipid)
+	if err != nil {
+		resp.WriteError(http.StatusInternalServerError, errors.New(fmt.Sprint("VIP not found: ", vipid)))
+	} else {
+		resp.WriteEntity(res)
+	}
+
 }
 
-func (ra *RestAPI) DeletePoolMember(w http.ResponseWriter, r *http.Request) {
+func (ra *RestAPI) GetAllVIPs(req *restful.Request, resp *restful.Response) {
 }
 
-func (ra *RestAPI) GetAllPoolMembers(w http.ResponseWriter, r *http.Request) {
+func (ra *RestAPI) CreatePool(req *restful.Request, resp *restful.Response) {
 }
 
-func (ra *RestAPI) DeleteAllPoolMembers(w http.ResponseWriter, r *http.Request) {
+func (ra *RestAPI) DeletePool(req *restful.Request, resp *restful.Response) {
+}
+
+func (ra *RestAPI) AddPoolMembers(req *restful.Request, resp *restful.Response) {
+}
+
+func (ra *RestAPI) DeletePoolMember(req *restful.Request, resp *restful.Response) {
+}
+
+func (ra *RestAPI) GetAllPoolMembers(req *restful.Request, resp *restful.Response) {
+}
+
+func (ra *RestAPI) DeleteAllPoolMembers(req *restful.Request, resp *restful.Response) {
 }

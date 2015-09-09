@@ -4,13 +4,14 @@ import (
 	"github.com/chrissnell/lbaas/config"
 	"github.com/chrissnell/lbaas/controller/restapi"
 	"github.com/chrissnell/lbaas/model"
-	"github.com/gorilla/mux"
+	"github.com/emicklei/go-restful"
 )
 
 type Controller struct {
-	c config.Config
-	m *model.Model
-	r *restapi.RestAPI
+	c  config.Config
+	m  *model.Model
+	R  *restapi.RestAPI
+	WS *restful.WebService
 }
 
 // New will create a new Controller
@@ -19,35 +20,34 @@ func New(config config.Config, model *model.Model) *Controller {
 		c: config,
 		m: model,
 	}
+
+	// Initialize the REST API
+	a.R = restapi.New(config, model)
+
+	a.WS = a.APIRouter()
+
 	return a
 }
 
-// APIRouter will create a new gorilla Router for handling all REST API calls
-func (a *Controller) APIRouter() *mux.Router {
-	apiRouter := mux.NewRouter().StrictSlash(true)
+// APIRouter will create a new go-restful router for handling REST API calls
+func (a *Controller) APIRouter() *restful.WebService {
 
-	apiRouter.HandleFunc("/vip", a.r.CreateVIP).Methods("POST")
-	apiRouter.HandleFunc("/vip/{vipid}", a.r.GetVIP).Methods("GET")
-	apiRouter.HandleFunc("/vip/{vipid}", a.r.DeleteVIP).Methods("DELETE")
-	apiRouter.HandleFunc("/vip/{vipid}", a.r.UpdateVIP).Methods("PUT")
-	apiRouter.HandleFunc("/vips", a.r.GetAllVIPs).Methods("GET")
+	ws := new(restful.WebService)
+	ws.Consumes(restful.MIME_JSON)
 
-	apiRouter.HandleFunc("/pool", a.r.CreatePool).Methods("POST")
-	apiRouter.HandleFunc("/pool", a.r.DeletePool).Methods("DELETE")
-	apiRouter.HandleFunc("/pool/{poolid}/members", a.r.AddPoolMembers).Methods("PUT")
-	apiRouter.HandleFunc("/pool/{poolid}/members/{member}", a.r.DeletePoolMember).Methods("DELETE")
-	apiRouter.HandleFunc("/pool/{poolid}/members", a.r.GetAllPoolMembers).Methods("GET")
-	apiRouter.HandleFunc("/pool/{poolid}/members", a.r.DeleteAllPoolMembers).Methods("DELETE")
+	ws.Route(ws.POST("/vip").To(a.R.CreateVIP))
+	ws.Route(ws.GET("/vip/{vipid}").To(a.R.GetVIP))
+	ws.Route(ws.DELETE("/vip/{vipid}").To(a.R.DeleteVIP))
+	ws.Route(ws.PUT("/vip/{vipid}").To(a.R.UpdateVIP))
+	ws.Route(ws.PUT("/vips").To(a.R.GetAllVIPs))
 
-	return apiRouter
-}
+	ws.Route(ws.POST("/pool").To(a.R.CreatePool))
+	ws.Route(ws.DELETE("/pool").To(a.R.DeletePool))
+	ws.Route(ws.PUT("/pool/{poolid}/members").To(a.R.AddPoolMembers))
+	ws.Route(ws.DELETE("/pool/{poolid}/members/{member}").To(a.R.AddPoolMembers))
+	ws.Route(ws.GET("/pool/{poolid}/members").To(a.R.GetAllPoolMembers))
+	ws.Route(ws.DELETE("/pool/{poolid}/members").To(a.R.DeleteAllPoolMembers))
 
-// APIRouter will create a new gorilla Router for handling all Kubernetes REST API calls for
-// the Kubernetes RESTful CloudProvider interface
-func (a *Controller) KubeRouter() *mux.Router {
-	KubeRouter := mux.NewRouter().StrictSlash(true)
+	return ws
 
-	// add some KubeRouter.HandleFunc()'s here
-
-	return KubeRouter
 }

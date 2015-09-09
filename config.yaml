@@ -1,6 +1,5 @@
 service:
   api_listen_address: 127.0.0.1:7701
-  kubernetes_api_listen_address: 127.0.0.1:7702
 load_balancer:
   kind: f5
   f5:
@@ -11,3 +10,7 @@ etcd:
   hostname: 127.0.0.1
   port: 4001
   basepath: /lbaas
+kubernetes:
+  api_endpoint: http://localhost:8080
+  username: test
+  password: password 
