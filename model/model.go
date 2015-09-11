@@ -3,8 +3,6 @@ package model
 import (
 	"encoding/json"
 
-	"github.com/coreos/etcd/client"
-
 	"github.com/chrissnell/lbaas/config"
 )
 
@@ -41,10 +39,10 @@ type Model struct {
 }
 
 // New creates a new data model with a new DB connection
-func New(e client.Client, lb LoadBalancer, c config.Config) *Model {
+func New(lb LoadBalancer, c config.Config) *Model {
 
 	s := &Store{}
-	s = s.New(e, c)
+	s = s.New(c)
 
 	m := &Model{
 		S:  s,

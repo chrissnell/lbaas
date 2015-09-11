@@ -25,7 +25,21 @@ type Store struct {
 // DeleteVIP(string) error
 // FetchAllVIPs() ([]*VIP, error)
 
-func (s *Store) New(e client.Client, c config.Config) *Store {
+func (s *Store) New(c config.Config) *Store {
+	// Open an etcd client
+	var endpoints []string
+	endpoints = append(endpoints, fmt.Sprintf("http://%v:%v", c.Etcd.Hostname, c.Etcd.Port))
+
+	ec := client.Config{
+		Endpoints: endpoints,
+		Transport: client.DefaultTransport,
+	}
+
+	e, err := client.New(ec)
+	if err != nil {
+		log.Fatalln("Could not connect to etcd:", err)
+	}
+
 	// Create a new KeysAPI for etcd
 	k := client.NewKeysAPI(e)
 
