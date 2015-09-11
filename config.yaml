@@ -8,7 +8,7 @@ load_balancer:
     password: test
 etcd:
   hostname: 127.0.0.1
-  port: 4001
+  port: 2379 
   basepath: /lbaas
 kubernetes:
   api_endpoint: http://localhost:8080

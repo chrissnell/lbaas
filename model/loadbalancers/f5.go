@@ -2,7 +2,9 @@ package f5
 
 import (
 	"errors"
+
 	"github.com/chrissnell/lbaas/model"
+	"github.com/chrissnell/lbaas/util/log"
 )
 
 type F5 struct {
@@ -27,21 +29,25 @@ func (f F5) UpdateVIP(*model.VIP) error {
 	return err
 }
 
-func (f F5) DeleteVIP(string) error {
+func (f F5) DeleteVIP(vipid string) error {
 	var err error
+	logger.LogFn("", vipid)
 	return err
 }
 
 func (f F5) GetVIP(string) (*model.VIP, error) {
 	var err error
 	var v model.VIP
+
+	err = errors.New("Some dumb error")
 	v.Name = "My Test VIP"
-	err = errors.New("This is broken")
+
 	return &v, err
 }
 
 func (f F5) GetAllVIPs() ([]*model.VIP, error) {
 	var err error
+
 	var v []*model.VIP
 	return v, err
 }

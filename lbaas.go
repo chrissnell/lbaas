@@ -12,14 +12,14 @@ import (
 	"github.com/chrissnell/lbaas/model"
 	"github.com/chrissnell/lbaas/model/loadbalancers"
 
-	"github.com/coreos/go-etcd/etcd"
+	"github.com/coreos/etcd/client"
 	"github.com/emicklei/go-restful"
 )
 
 // Service contains our configuration and runtime objects
 type Service struct {
 	Config     config.Config
-	etcdclient *etcd.Client
+	etcdclient client.Client
 	controller *controller.Controller
 	model      *model.Model
 }
@@ -37,11 +37,20 @@ func New(filename string) *Service {
 	s.Config = cfg
 
 	// Open an etcd client
-	var eh []string
-	eh = append(eh, fmt.Sprintf("%v:%v", s.Config.Etcd.Hostname, s.Config.Etcd.Port))
-	s.etcdclient = etcd.NewClient(eh)
+	var endpoints []string
+	endpoints = append(endpoints, fmt.Sprintf("http://%v:%v", s.Config.Etcd.Hostname, s.Config.Etcd.Port))
 
-	defer s.etcdclient.Close()
+	ec := client.Config{
+		Endpoints: endpoints,
+		Transport: client.DefaultTransport,
+	}
+
+	log.Printf("%+v\n", ec)
+
+	s.etcdclient, err = client.New(ec)
+	if err != nil {
+		log.Fatalln("Could not connect to etcd:", err)
+	}
 
 	// Initialize our model with load balancer based on our configured type
 	switch s.Config.LoadBalancer.Kind {

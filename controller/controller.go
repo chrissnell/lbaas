@@ -34,6 +34,7 @@ func (a *Controller) APIRouter() *restful.WebService {
 
 	ws := new(restful.WebService)
 	ws.Consumes(restful.MIME_JSON)
+	ws.Produces(restful.MIME_JSON)
 
 	ws.Route(ws.POST("/vip").To(a.R.CreateVIP))
 	ws.Route(ws.GET("/vip/{vipid}").To(a.R.GetVIP))

@@ -1,14 +1,25 @@
 package model
 
 import (
-	"errors"
-	"fmt"
-	"regexp"
+	"encoding/json"
+
+	"github.com/coreos/etcd/client"
 
 	"github.com/chrissnell/lbaas/config"
-
-	"github.com/coreos/go-etcd/etcd"
 )
+
+type VIP struct {
+	Name               string       `json:"name"`
+	FrontEndIPClass    string       `json:"frontend_ip_class"`
+	FrontendIP         string       `json:"frontend_ip"`
+	FrontendIPUUID     string       `json:"frontend_ip_uuid"`
+	FrontendPort       uint8        `json:"frontend_port"`
+	FrontendProtocol   string       `json:"frontend_protocol"`
+	FrontendProfiles   []string     `json:"frontend_profiles"`
+	PoolMembers        []PoolMember `json:"pool_members"`
+	PoolMemberProtocol string       `json:"pool_member_protocols"` // HTTP, HTTPS, UDP, FTP, etc
+	KubeSvcName        string       `json:"kube_service_name"`
+}
 
 type LoadBalancer interface {
 	CreateVIP(*VIP) error
@@ -24,15 +35,19 @@ type LoadBalancer interface {
 
 // Model contains the data model with the associated etcd Client
 type Model struct {
-	e  *etcd.Client
 	c  config.Config
 	LB LoadBalancer
+	S  *Store
 }
 
 // New creates a new data model with a new DB connection
-func New(e *etcd.Client, lb LoadBalancer, c config.Config) *Model {
+func New(e client.Client, lb LoadBalancer, c config.Config) *Model {
+
+	s := &Store{}
+	s = s.New(e, c)
+
 	m := &Model{
-		e:  e,
+		S:  s,
 		LB: lb.(LoadBalancer),
 		c:  c,
 	}
@@ -40,12 +55,14 @@ func New(e *etcd.Client, lb LoadBalancer, c config.Config) *Model {
 	return m
 }
 
-func (m *Model) SafeGet(key string, sort, recursive bool) (*etcd.Response, error) {
-	// Test for rude boys
-	r, _ := regexp.Compile("../")
-	if r.MatchString(key) {
-		return nil, errors.New(fmt.Sprint("Invalid key:", key))
-	}
+// Marshal implements the json Encoder interface
+func (v *VIP) Marshal() ([]byte, error) {
+	jv, err := json.Marshal(&v)
+	return jv, err
+}
 
-	return m.e.Get(key, sort, recursive)
+// Unmarshal implements the json Decoder interface
+func (v *VIP) Unmarshal(jv string) error {
+	err := json.Unmarshal([]byte(jv), &v)
+	return err
 }
