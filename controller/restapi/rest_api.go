@@ -102,7 +102,6 @@ func (ra *RestAPI) UpdateVIP(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
-	// Everything appears to have worked.
 	return
 
 }
@@ -110,14 +109,14 @@ func (ra *RestAPI) UpdateVIP(req *restful.Request, resp *restful.Response) {
 func (ra *RestAPI) GetVIP(req *restful.Request, resp *restful.Response) {
 	vipid := req.PathParameter("vipid")
 
-	// Get and respond with the VIP from our model or throw an error if
+	// Get and respond with the VIP from our store or throw an error if
 	// it doesn't exist
-	vip, err := ra.m.LB.GetVIP(vipid)
+	vip, err := ra.m.S.FetchVIP(vipid)
 	if err != nil {
-		resterror.WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("VIP id %v not found", vipid))
+		resterror.WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("VIP id %v not found: %v", vipid, err))
 		return
 	}
-
+	resp.PrettyPrint(false)
 	resp.WriteHeader(http.StatusOK)
 	resp.WriteEntity(vip)
 

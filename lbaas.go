@@ -45,8 +45,6 @@ func New(filename string) *Service {
 		Transport: client.DefaultTransport,
 	}
 
-	log.Printf("%+v\n", ec)
-
 	s.etcdclient, err = client.New(ec)
 	if err != nil {
 		log.Fatalln("Could not connect to etcd:", err)

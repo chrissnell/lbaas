@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/coreos/etcd/Godeps/_workspace/src/github.com/ugorji/go/codec"
 	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 
@@ -39,27 +38,20 @@ func (s *Store) New(e client.Client, c config.Config) *Store {
 	return ns
 }
 
-// GetVIP will fetch a VIP from the etcd
+// GetVIP will fetch a VIP from etcd
 func (s *Store) FetchVIP(v string) (*VIP, error) {
-	var db []byte
-	var h codec.Handle = new(codec.JsonHandle)
-
 	var dv *VIP
-
-	dec := codec.NewDecoderBytes(db, h)
 
 	er, err := s.SafeGet(fmt.Sprint(s.c.Etcd.BasePath, "/vips/", v), true, false)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Error fetching /vips/%v : %v\n", v, err))
+		return nil, errors.New(fmt.Sprintf("Error fetching /vips/%v : %v", v, err))
 	}
 
-	//er.CodecEncodeSelf(enc)
-	er.CodecDecodeSelf(dec)
+	err = json.Unmarshal([]byte(er.Node.Value), &dv)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Error decoding response from etcd:", err))
 	}
 
-	log.Println("Returned JSON:", er)
 	return dv, nil
 }
 
@@ -101,7 +93,7 @@ func (s *Store) SafeGet(key string, sort, recursive bool) (*client.Response, err
 	defer cancel()
 
 	// Test for rude boys
-	r, _ := regexp.Compile("../")
+	r, _ := regexp.Compile(`\.\./`)
 	if r.MatchString(key) {
 		return nil, errors.New(fmt.Sprint("Invalid key:", key))
 	}
