@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"log"
 
 	"github.com/chrissnell/lbaas/config"
 )
@@ -11,12 +12,14 @@ type VIP struct {
 	FrontEndIPClass    string       `json:"frontend_ip_class"`
 	FrontendIP         string       `json:"frontend_ip"`
 	FrontendIPUUID     string       `json:"frontend_ip_uuid"`
-	FrontendPort       uint8        `json:"frontend_port"`
+	FrontendPort       uint16       `json:"frontend_port"`
 	FrontendProtocol   string       `json:"frontend_protocol"`
 	FrontendProfiles   []string     `json:"frontend_profiles"`
 	PoolMembers        []PoolMember `json:"pool_members"`
 	PoolMemberProtocol string       `json:"pool_member_protocols"` // HTTP, HTTPS, UDP, FTP, etc
+	KubeNamespace      string       `json:"kube_namespace"`
 	KubeSvcName        string       `json:"kube_service_name"`
+	KubeSvcPortName    string       `json:"kube_service_port_name"`
 }
 
 type LoadBalancer interface {
@@ -36,16 +39,24 @@ type Model struct {
 	c  config.Config
 	LB LoadBalancer
 	S  *Store
+	K  *Kube
 }
 
-// New creates a new data model with a new DB connection
+// New creates a new data model with a new DB connection and Kube API client
 func New(lb LoadBalancer, c config.Config) *Model {
 
 	s := &Store{}
 	s = s.New(c)
 
+	k := &Kube{}
+	k, err := k.New(c)
+	if err != nil {
+		log.Fatalln("Error creating Kubernetes client:", err)
+	}
+
 	m := &Model{
 		S:  s,
+		K:  k,
 		LB: lb.(LoadBalancer),
 		c:  c,
 	}

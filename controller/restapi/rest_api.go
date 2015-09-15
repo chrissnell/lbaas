@@ -1,20 +1,25 @@
 package restapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/chrissnell/lbaas/config"
 	"github.com/chrissnell/lbaas/model"
-	"github.com/chrissnell/lbaas/util/log"
-	"github.com/chrissnell/lbaas/util/resterror"
 
 	"github.com/emicklei/go-restful"
+	api "k8s.io/kubernetes/pkg/api"
 )
 
 type RestAPI struct {
 	c config.Config
 	m *model.Model
+}
+
+type APIResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
 func New(config config.Config, model *model.Model) *RestAPI {
@@ -30,33 +35,67 @@ func (ra *RestAPI) CreateVIP(req *restful.Request, resp *restful.Response) {
 	v := new(model.VIP)
 	err := req.ReadEntity(&v)
 	if err != nil {
-		resterror.WriteErrorJSON(resp, http.StatusNotAcceptable, fmt.Errorf("Error parsing VIP entity: %v", err))
-	}
-
-	if v.Name == "" {
-		resterror.WriteErrorJSON(resp, http.StatusNotAcceptable, fmt.Errorf("VIP name cannot be empty."))
-	}
-
-	// Let's check to see if a VIP by this name already exists in the datbase
-	_, err = ra.m.S.FetchVIP(v.Name)
-	if err == nil {
-		resterror.WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("VIP %v already exists.  Please choose a new name", v.Name))
+		WriteErrorJSON(resp, http.StatusNotAcceptable, fmt.Errorf("Error parsing VIP entity JSON: %v", err))
 		return
 	}
 
-	// Check with Kube to make sure the kube service name is valid
+	if v.Name == "" {
+		WriteErrorJSON(resp, http.StatusNotAcceptable, fmt.Errorf("VIP name cannot be empty."))
+		return
+	}
+
+	if v.KubeSvcName == "" || v.KubeSvcPortName == "" {
+		WriteErrorJSON(resp, http.StatusNotAcceptable, fmt.Errorf("VIP's Kubernetes service name and port name cannot be empty."))
+		return
+	}
+
+	if v.KubeNamespace == "" {
+		v.KubeNamespace = api.NamespaceDefault
+	}
+
+	// Let's check to see if a VIP by this name already exists in the datbase
+	_, err = ra.m.S.GetVIP(v.Name)
+	if err == nil {
+		WriteErrorJSON(resp, http.StatusNotAcceptable, fmt.Errorf("VIP %v already exists.  Please choose a new name.", v.Name))
+		return
+	}
+
+	// Let's see if the service exists in Kubernetes...
+	ks, err := ra.m.K.GetKubeService(v.KubeSvcName, v.KubeNamespace)
+	if err != nil {
+		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("Kubernetes service name %v could not be found in namespace %v: %v", v.KubeSvcName, v.KubeNamespace, err))
+		return
+	}
+
+	// Let's make sure that the Kuberenetes service has a NodePort for the supplied port name
+	np, err := ra.m.K.GetNodePortForServiceByPortName(ks, v.KubeSvcPortName)
+	if err != nil {
+		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("Kubernetes service %v does not have a NodePort for port %v", v.KubeSvcName, np))
+		return
+	}
+
 	// Check with cidrd to make sure this classname exists
 	// Fetch an IP from cidrd and store UUID in VIP struct
+
+	// Make sure TCP/UDP port is valid
+	if v.FrontendPort < 1 || v.FrontendPort > 65535 {
+		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("Invalid VIP frontend port: %v", v.FrontendPort))
+		return
+	}
 	// Make sure a valid FE port was specified
 	// Make sure a valid FE protocol was specified
 
 	// Send some signals via channel
 
-	err = ra.m.S.StoreVIP(v)
+	// Everything looks good so we store the VIP in the database
+	err = ra.m.S.SetVIP(v)
 	if err != nil {
-		resterror.WriteErrorJSON(resp, http.StatusInternalServerError, fmt.Errorf("Error storing VIP %v: %v", v.Name, err))
-
+		WriteErrorJSON(resp, http.StatusInternalServerError, fmt.Errorf("Error storing VIP %v: %v", v.Name, err))
+		return
 	}
+
+	// Return a 200 OK
+	WriteSuccessJSON(resp, http.StatusOK, fmt.Sprintf("VIP %v created successfully.", v.Name))
 
 	// type VIP struct {
 	// 	Name               string       `json:"name"`
@@ -69,40 +108,58 @@ func (ra *RestAPI) CreateVIP(req *restful.Request, resp *restful.Response) {
 	// 	PoolMembers        []PoolMember `json:"pool_members"`
 	// 	PoolMemberProtocol string       `json:"pool_member_protocols"` // HTTP, HTTPS, UDP, FTP, etc
 	// 	KubeSvcName        string       `json:"kube_service_name"`
+	//	KubeSvcPortName    string       `json:"kube_service_port_name"`
 	// }
 
-}
-
-func (ra *RestAPI) DeleteVIP(req *restful.Request, resp *restful.Response) {
-	vipid := req.PathParameter("vipid")
-
-	logger.LogFn("model.LB.GetVIP", vipid)
-	logger.Log("controller.LBEngine.DeleteVIPChan <- VIP struct...")
 }
 
 func (ra *RestAPI) UpdateVIP(req *restful.Request, resp *restful.Response) {
 	v := new(model.VIP)
 	err := req.ReadEntity(&v)
 	if err != nil {
-		resterror.WriteErrorJSON(resp, http.StatusNotAcceptable, fmt.Errorf("Error parsing VIP entity: %v", err))
+		WriteErrorJSON(resp, http.StatusNotAcceptable, fmt.Errorf("Error parsing VIP entity: %v", err))
 		return
 	}
 
 	// First, we check to see if this VIP actually exists...
-	_, err = ra.m.S.FetchVIP(v.Name)
+	_, err = ra.m.S.GetVIP(v.Name)
 	if err != nil {
-		resterror.WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("VIP %v does not exist: %v", v.Name, err))
+		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("VIP %v does not exist: %v", v.Name, err))
 		return
 	}
 
 	// The VIP is there, so we overwrite it with the VIP we were passed
-	err = ra.m.S.StoreVIP(v)
+	err = ra.m.S.SetVIP(v)
 	if err != nil {
-		resterror.WriteErrorJSON(resp, http.StatusInternalServerError, fmt.Errorf("Error storing VIP %v: %v", v.Name, err))
+		WriteErrorJSON(resp, http.StatusInternalServerError, fmt.Errorf("Error storing VIP %v: %v", v.Name, err))
 		return
+	} else {
+
 	}
 
 	return
+
+}
+
+func (ra *RestAPI) DeleteVIP(req *restful.Request, resp *restful.Response) {
+	vipid := req.PathParameter("vipid")
+
+	// Make sure the VIP exists before we attempt to delete it.
+	_, err := ra.m.S.GetVIP(vipid)
+	if err != nil {
+		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("VIP %v not found, cannot be deleted: %v", vipid, err))
+		return
+	}
+
+	// Delete the VIP
+	err = ra.m.S.DeleteVIP(vipid)
+	if err != nil {
+		WriteErrorJSON(resp, http.StatusInternalServerError, fmt.Errorf("VIP %v could not be deleted: %v", vipid, err))
+		return
+	} else {
+		// Return a 200 OK
+		WriteSuccessJSON(resp, http.StatusOK, fmt.Sprintf("VIP %v deleted successfully.", vipid))
+	}
 
 }
 
@@ -111,9 +168,9 @@ func (ra *RestAPI) GetVIP(req *restful.Request, resp *restful.Response) {
 
 	// Get and respond with the VIP from our store or throw an error if
 	// it doesn't exist
-	vip, err := ra.m.S.FetchVIP(vipid)
+	vip, err := ra.m.S.GetVIP(vipid)
 	if err != nil {
-		resterror.WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("VIP id %v not found: %v", vipid, err))
+		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("VIP %v not found: %v", vipid, err))
 		return
 	}
 	resp.PrettyPrint(false)
@@ -141,4 +198,29 @@ func (ra *RestAPI) GetAllPoolMembers(req *restful.Request, resp *restful.Respons
 }
 
 func (ra *RestAPI) DeleteAllPoolMembers(req *restful.Request, resp *restful.Response) {
+}
+
+func WriteErrorJSON(resp *restful.Response, respCode int, err error) {
+	er := APIResponse{}
+
+	fmt.Println("Error:", respCode, err.Error())
+
+	er.Message = err.Error()
+
+	content, _ := json.Marshal(er)
+
+	resp.ResponseWriter.WriteHeader(respCode)
+	resp.Write(content)
+}
+
+func WriteSuccessJSON(resp *restful.Response, respCode int, result string) {
+	s := APIResponse{}
+
+	s.Message = result
+	s.Success = true
+
+	content, _ := json.Marshal(s)
+
+	resp.ResponseWriter.WriteHeader(respCode)
+	resp.Write(content)
 }

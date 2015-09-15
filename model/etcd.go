@@ -15,9 +15,10 @@ import (
 )
 
 type Store struct {
-	c config.Config
-	e client.Client
-	k client.KeysAPI
+	c        config.Config
+	e        client.Client
+	k        client.KeysAPI
+	basePath string
 }
 
 // FetchVIP(string) (*VIP, error)
@@ -44,19 +45,24 @@ func (s *Store) New(c config.Config) *Store {
 	k := client.NewKeysAPI(e)
 
 	ns := &Store{
-		e: e,
-		c: c,
-		k: k,
+		e:        e,
+		c:        c,
+		k:        k,
+		basePath: fmt.Sprint(c.Etcd.BasePath, "/vips/"),
 	}
 
 	return ns
 }
 
+func (s *Store) keyPath(k string) string {
+	return fmt.Sprint(s.basePath, k)
+}
+
 // GetVIP will fetch a VIP from etcd
-func (s *Store) FetchVIP(v string) (*VIP, error) {
+func (s *Store) GetVIP(v string) (*VIP, error) {
 	var dv *VIP
 
-	er, err := s.SafeGet(fmt.Sprint(s.c.Etcd.BasePath, "/vips/", v), true, false)
+	er, err := s.SafeGet(s.keyPath(v), true, false)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Error fetching /vips/%v : %v", v, err))
 	}
@@ -69,7 +75,7 @@ func (s *Store) FetchVIP(v string) (*VIP, error) {
 	return dv, nil
 }
 
-func (s *Store) StoreVIP(v *VIP) error {
+func (s *Store) SetVIP(v *VIP) error {
 	if v.Name == "" {
 		return fmt.Errorf("Cannot store a VIP if name is not set.")
 	}
@@ -86,13 +92,27 @@ func (s *Store) StoreVIP(v *VIP) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = s.k.Set(ctx, fmt.Sprint(s.c.Etcd.BasePath, "/vips/", v.Name), string(vs), opt)
+	_, err = s.k.Set(ctx, s.keyPath(v.Name), string(vs), opt)
 	if err != nil {
 		return err
 	} else {
 		return nil
 	}
+}
 
+func (s *Store) DeleteVIP(v string) error {
+
+	opt := &client.DeleteOptions{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := s.k.Delete(ctx, s.keyPath(v), opt)
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
 }
 
 func (s *Store) SafeGet(key string, sort, recursive bool) (*client.Response, error) {
