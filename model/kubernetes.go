@@ -60,3 +60,20 @@ func (k *Kube) GetNodePortForServiceByPortName(s *api.Service, portName string) 
 
 	return 0, fmt.Errorf("No port named %v for service %v were found.", portName, s.Name)
 }
+
+func (k *Kube) VerifyKubeService(v *VIP) (bool, error) {
+
+	// Let's see if the service exists in Kubernetes...
+	ks, err := k.GetKubeService(v.KubeSvcName, v.KubeNamespace)
+	if err != nil {
+		return false, fmt.Errorf("Kubernetes service name %v could not be found in namespace %v: %v", v.KubeSvcName, v.KubeNamespace, err)
+	}
+
+	// Let's make sure that the Kuberenetes service has a NodePort for the supplied port name
+	np, err := k.GetNodePortForServiceByPortName(ks, v.KubeSvcPortName)
+	if err != nil {
+		return false, fmt.Errorf("Kubernetes service %v does not have a NodePort for port %v", v.KubeSvcName, np)
+	}
+
+	return true, nil
+}

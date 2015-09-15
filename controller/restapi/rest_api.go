@@ -44,6 +44,12 @@ func (ra *RestAPI) CreateVIP(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
+	// Make sure frontend TCP/UDP port is valid
+	if v.FrontendPort < 1 || v.FrontendPort > 65535 {
+		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("Invalid VIP frontend port: %v", v.FrontendPort))
+		return
+	}
+
 	if v.KubeSvcName == "" || v.KubeSvcPortName == "" {
 		WriteErrorJSON(resp, http.StatusNotAcceptable, fmt.Errorf("VIP's Kubernetes service name and port name cannot be empty."))
 		return
@@ -60,28 +66,15 @@ func (ra *RestAPI) CreateVIP(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
-	// Let's see if the service exists in Kubernetes...
-	ks, err := ra.m.K.GetKubeService(v.KubeSvcName, v.KubeNamespace)
-	if err != nil {
-		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("Kubernetes service name %v could not be found in namespace %v: %v", v.KubeSvcName, v.KubeNamespace, err))
-		return
-	}
-
-	// Let's make sure that the Kuberenetes service has a NodePort for the supplied port name
-	np, err := ra.m.K.GetNodePortForServiceByPortName(ks, v.KubeSvcPortName)
-	if err != nil {
-		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("Kubernetes service %v does not have a NodePort for port %v", v.KubeSvcName, np))
+	valid, err := ra.m.K.VerifyKubeService(v)
+	if !valid {
+		WriteErrorJSON(resp, http.StatusNotFound, err)
 		return
 	}
 
 	// Check with cidrd to make sure this classname exists
 	// Fetch an IP from cidrd and store UUID in VIP struct
 
-	// Make sure TCP/UDP port is valid
-	if v.FrontendPort < 1 || v.FrontendPort > 65535 {
-		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("Invalid VIP frontend port: %v", v.FrontendPort))
-		return
-	}
 	// Make sure a valid FE port was specified
 	// Make sure a valid FE protocol was specified
 
