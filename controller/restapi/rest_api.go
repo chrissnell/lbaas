@@ -39,24 +39,11 @@ func (ra *RestAPI) CreateVIP(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
-	if v.Name == "" {
-		WriteErrorJSON(resp, http.StatusNotAcceptable, fmt.Errorf("VIP name cannot be empty."))
+	// Validate the VIP fields that were provided
+	valid, err := ra.validateVIPFields(v)
+	if !valid {
+		WriteErrorJSON(resp, http.StatusNotAcceptable, err)
 		return
-	}
-
-	// Make sure frontend TCP/UDP port is valid
-	if v.FrontendPort < 1 || v.FrontendPort > 65535 {
-		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("Invalid VIP frontend port: %v", v.FrontendPort))
-		return
-	}
-
-	if v.KubeSvcName == "" || v.KubeSvcPortName == "" {
-		WriteErrorJSON(resp, http.StatusNotAcceptable, fmt.Errorf("VIP's Kubernetes service name and port name cannot be empty."))
-		return
-	}
-
-	if v.KubeNamespace == "" {
-		v.KubeNamespace = api.NamespaceDefault
 	}
 
 	// Let's check to see if a VIP by this name already exists in the datbase
@@ -66,9 +53,10 @@ func (ra *RestAPI) CreateVIP(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
-	valid, err := ra.m.K.VerifyKubeService(v)
+	// Validate the Kubernetes service and port names that were provided
+	valid, err = ra.m.K.VerifyKubeService(v)
 	if !valid {
-		WriteErrorJSON(resp, http.StatusNotFound, err)
+		WriteErrorJSON(resp, http.StatusNotAcceptable, err)
 		return
 	}
 
@@ -114,10 +102,24 @@ func (ra *RestAPI) UpdateVIP(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
+	// Validate the VIP fields that were provided
+	valid, err := ra.validateVIPFields(v)
+	if !valid {
+		WriteErrorJSON(resp, http.StatusNotAcceptable, err)
+		return
+	}
+
 	// First, we check to see if this VIP actually exists...
 	_, err = ra.m.S.GetVIP(v.Name)
 	if err != nil {
 		WriteErrorJSON(resp, http.StatusNotFound, fmt.Errorf("VIP %v does not exist: %v", v.Name, err))
+		return
+	}
+
+	// Validate the Kubernetes service and port names that were provided
+	valid, err = ra.m.K.VerifyKubeService(v)
+	if !valid {
+		WriteErrorJSON(resp, http.StatusNotAcceptable, err)
 		return
 	}
 
@@ -130,8 +132,9 @@ func (ra *RestAPI) UpdateVIP(req *restful.Request, resp *restful.Response) {
 
 	}
 
+	// Return a 200 OK
+	WriteSuccessJSON(resp, http.StatusOK, fmt.Sprintf("VIP %v updated successfully.", v.Name))
 	return
-
 }
 
 func (ra *RestAPI) DeleteVIP(req *restful.Request, resp *restful.Response) {
@@ -191,6 +194,28 @@ func (ra *RestAPI) GetAllPoolMembers(req *restful.Request, resp *restful.Respons
 }
 
 func (ra *RestAPI) DeleteAllPoolMembers(req *restful.Request, resp *restful.Response) {
+}
+
+func (ra *RestAPI) validateVIPFields(v *model.VIP) (bool, error) {
+	if v.Name == "" {
+		return false, fmt.Errorf("VIP name cannot be empty.")
+	}
+
+	// Make sure frontend TCP/UDP port is valid
+	if v.FrontendPort < 1 || v.FrontendPort > 65535 {
+		return false, fmt.Errorf("Invalid VIP frontend port: %v", v.FrontendPort)
+	}
+
+	if v.KubeSvcName == "" || v.KubeSvcPortName == "" {
+		return false, fmt.Errorf("VIP's Kubernetes service name and port name cannot be empty.")
+	}
+
+	// If a K8S namespace was not provided, just use the default namespace
+	if v.KubeNamespace == "" {
+		v.KubeNamespace = api.NamespaceDefault
+	}
+
+	return true, nil
 }
 
 func WriteErrorJSON(resp *restful.Response, respCode int, err error) {
