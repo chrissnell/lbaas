@@ -227,6 +227,7 @@ func WriteErrorJSON(resp *restful.Response, respCode int, err error) {
 
 	content, _ := json.Marshal(er)
 
+	resp.Header().Set(restful.HEADER_ContentType, restful.MIME_JSON)
 	resp.ResponseWriter.WriteHeader(respCode)
 	resp.Write(content)
 }
@@ -239,6 +240,7 @@ func WriteSuccessJSON(resp *restful.Response, respCode int, result string) {
 
 	content, _ := json.Marshal(s)
 
+	resp.Header().Set(restful.HEADER_ContentType, restful.MIME_JSON)
 	resp.ResponseWriter.WriteHeader(respCode)
 	resp.Write(content)
 }
