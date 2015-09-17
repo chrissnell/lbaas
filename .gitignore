@@ -3,3 +3,5 @@ lbaas
 config.yaml
 
 *.json
+
+*.yaml

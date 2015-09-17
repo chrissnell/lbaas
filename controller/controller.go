@@ -1,32 +1,45 @@
 package controller
 
 import (
+	"github.com/emicklei/go-restful"
+
 	"github.com/chrissnell/lbaas/config"
 	"github.com/chrissnell/lbaas/controller/restapi"
+	"github.com/chrissnell/lbaas/engines/kubernetes/nodes"
+	"github.com/chrissnell/lbaas/engines/kubernetes/services"
 	"github.com/chrissnell/lbaas/model"
-	"github.com/emicklei/go-restful"
 )
 
 type Controller struct {
-	c  config.Config
-	m  *model.Model
-	R  *restapi.RestAPI
-	WS *restful.WebService
+	c                     config.Config
+	m                     *model.Model
+	R                     *restapi.RestAPI
+	WS                    *restful.WebService
+	NodesWatcherEngine    *nodesengine.Engine
+	ServicesWatcherEngine *servicesengine.Engine
 }
 
 // New will create a new Controller
-func New(config config.Config, model *model.Model) *Controller {
-	a := &Controller{
+func New(config config.Config, m *model.Model) *Controller {
+
+	c := &Controller{
 		c: config,
-		m: model,
+		m: m,
 	}
 
 	// Initialize the REST API
-	a.R = restapi.New(config, model)
+	c.R = restapi.New(config, m)
 
-	a.WS = a.APIRouter()
+	// Create and start the Nodes watcher engine
+	c.NodesWatcherEngine = nodesengine.New(m)
 
-	return a
+	// Create and start the Services watcher engine
+	c.ServicesWatcherEngine = servicesengine.New(m)
+
+	// Start routing the API
+	c.WS = c.APIRouter()
+
+	return c
 }
 
 // APIRouter will create a new go-restful router for handling REST API calls

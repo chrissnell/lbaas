@@ -3,8 +3,11 @@ package model
 import (
 	"fmt"
 
-	api "k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api"
 	client "k8s.io/kubernetes/pkg/client/unversioned"
+	"k8s.io/kubernetes/pkg/fields"
+	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/watch"
 
 	"github.com/chrissnell/lbaas/config"
 )
@@ -40,11 +43,45 @@ func (k *Kube) New(c config.Config) (*Kube, error) {
 
 // Gets a service by name, for a given namespace
 func (k *Kube) GetKubeService(s string, namespace string) (*api.Service, error) {
+	if namespace == "" {
+		namespace = api.NamespaceDefault
+	}
+
 	svc, err := k.c.Services(namespace).Get(s)
 	if err != nil {
 		return nil, err
 	}
 	return svc, nil
+}
+
+func (k *Kube) GetAllKubeServices(namespace string) (*api.ServiceList, error) {
+	if namespace == "" {
+		namespace = api.NamespaceDefault
+	}
+
+	sl, err := k.c.Services(namespace).List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+
+	return sl, nil
+}
+
+func (k *Kube) NewKubeServiceWatcher(namespace string, l labels.Selector) (watch.Interface, error) {
+	if namespace == "" {
+		namespace = api.NamespaceDefault
+	}
+
+	if l == nil {
+		l = labels.Everything()
+	}
+
+	w, err := k.c.Services(namespace).Watch(l, fields.Everything(), "")
+	if err != nil {
+		return nil, err
+	}
+	return w, nil
+
 }
 
 func (k *Kube) GetNodePortForServiceByPortName(s *api.Service, portName string) (int, error) {
@@ -76,4 +113,16 @@ func (k *Kube) VerifyKubeService(v *VIP) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (k *Kube) GetAllKubeNodes(namespace string) (*api.NodeList, error) {
+	if namespace == "" {
+		namespace = api.NamespaceDefault
+	}
+
+	nl, err := k.c.Nodes().List(labels.Everything(), fields.Everything())
+	if err != nil {
+		return nil, err
+	}
+	return nl, nil
 }

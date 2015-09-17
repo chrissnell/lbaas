@@ -31,6 +31,8 @@ func New(config config.Config, model *model.Model) *RestAPI {
 	return ra
 }
 
+// Creates a VIP from a JSON spec provided by the client, after validating the fields
+// and Kubernetes objects that were specified.
 func (ra *RestAPI) CreateVIP(req *restful.Request, resp *restful.Response) {
 	v := new(model.VIP)
 	err := req.ReadEntity(&v)
@@ -63,7 +65,6 @@ func (ra *RestAPI) CreateVIP(req *restful.Request, resp *restful.Response) {
 	// Check with cidrd to make sure this classname exists
 	// Fetch an IP from cidrd and store UUID in VIP struct
 
-	// Make sure a valid FE port was specified
 	// Make sure a valid FE protocol was specified
 
 	// Send some signals via channel
@@ -94,6 +95,8 @@ func (ra *RestAPI) CreateVIP(req *restful.Request, resp *restful.Response) {
 
 }
 
+// Updates a VIP from a JSON spec provided by the client, after validating the fields
+// and Kubernetes objects that were specified.
 func (ra *RestAPI) UpdateVIP(req *restful.Request, resp *restful.Response) {
 	v := new(model.VIP)
 	err := req.ReadEntity(&v)

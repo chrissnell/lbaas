@@ -32,6 +32,7 @@ type LoadBalancer interface {
 	DeletePoolMember(string) error
 	DeleteAllPoolMembers() error
 	GetPoolMembers() ([]*PoolMember, error)
+	ValidateProtocol(string) bool
 }
 
 // Model contains the data model with the associated etcd Client

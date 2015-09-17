@@ -72,3 +72,8 @@ func (f F5) GetPoolMembers() ([]*model.PoolMember, error) {
 	var p []*model.PoolMember
 	return p, err
 }
+
+func (f F5) ValidateProtocol(p string) bool {
+	// To Do - list of F5 protos
+	return true
+}
