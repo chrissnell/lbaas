@@ -25,12 +25,13 @@ The ```lbaasd``` K8S services watcher engine
 
 The ```lbaasd``` load balancer update engine
 -------------------------------------
-1. On startup, the load balancer update engine first polls etcd for the list of VIPs that it will be managing.
-2. It then queries ```cidrd``` to register IPs for any VIPs lacking an IP UUID in etcd.  
-3. Next, it queries ```cidrd``` with a ```GET``` to request an initial dump of all UUID->IP mappings for the existing VIPs.  
-4. As soon as the engine has current IP registrations, NodePort mappings (from services watcher engine), and a nodes list (from nodes watcher engine), it performs an initial update of VIPs on the load balancer and sends corresponding update events to the DNS updater engine.  
-5. Subsequently, the load balancer updaate engine listens on channels for update events from the nodes and services engines and updates VIPs as necessary.
-6. The engine also watches etcd for VIP deletion events.  If a VIP is deleted, the deletion is propagated to the load balancer, the services watcher, and the DNS updater.   Subsequently, a DELETE event is sent to cidrd.
+1. On startup, the load balancer update engine first polls etcd (via LB controller) for the list of VIPs that it will be managing.
+3. Next, it queries ```cidrd``` with a ```GET``` (via cidrd controller) to request an initial dump of all UUID->IP mappings for the existing VIPs.  
+3. It then queries ```cidrd``` (via cidrd controller) to register IPs for any VIPs lacking an IP UUID in etcd and calls the DNS controller to make any required DNS updates (which propagate to etcd)  
+4. As soon as the engine has current IP registrations, NodePort mappings (from services watcher engine), and a nodes list (from nodes watcher engine), it calls to the load balancer controller to do a VIP-by-VIP inspection of LB pool members to ensure that they align with living Kubernetes nodes.
+5. sends corresponding update events to the DNS updater engine.  
+6. Subsequently, the load balancer updaate engine listens on channels for update events from the nodes and services engines and updates VIPs as necessary.
+7. The engine also watches etcd for VIP deletion events.  If a VIP is deleted, the deletion is propagated to the load balancer, the services watcher, and the DNS updater.   Subsequently, a DELETE event is sent to cidrd.
 
 The ```lbaasd``` IP renewal engine
 -------------------------------------
