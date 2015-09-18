@@ -14,8 +14,8 @@ On ```lbaasd``` process startup
 
 The ```lbaasd``` K8S nodes watcher engine
 -------------------------------------
-1. On startup, it does an initial poll of K8S for a list of nodes, then sends this list to the load balancer update engine via channel.
-2. The engine then watches K8S for nodes changes and sends an updated list to the load balancer update engine when a change event is received.
+1. On startup, it begins a watch on all nodes for a specified namespace/selector, sending node events into a buffered channel to be read by the load balancer updater engine.
+2. Next, it does an initial poll of K8S for a list of nodes, then sends this list to the load balancer update engine via channel, which signals th beginning of a VIP-by-VIP inspection of LB pool members to ensure that they align with living Kubernetes nodes.
 
 
 The ```lbaasd``` K8S services watcher engine
