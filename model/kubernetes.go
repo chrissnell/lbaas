@@ -67,7 +67,7 @@ func (k *Kube) GetAllKubeServices(namespace string) (*api.ServiceList, error) {
 	return sl, nil
 }
 
-func (k *Kube) NewKubeServiceWatcher(namespace string, l labels.Selector) (watch.Interface, error) {
+func (k *Kube) NewKubeServicesWatcher(namespace string, l labels.Selector) (watch.Interface, error) {
 	if namespace == "" {
 		namespace = api.NamespaceDefault
 	}
@@ -81,7 +81,23 @@ func (k *Kube) NewKubeServiceWatcher(namespace string, l labels.Selector) (watch
 		return nil, err
 	}
 	return w, nil
+}
 
+func (k *Kube) NewKubeNodesWatcher(namespace string, l labels.Selector) (watch.Interface, error) {
+	if namespace == "" {
+		namespace = api.NamespaceDefault
+	}
+
+	if l == nil {
+		l = labels.Everything()
+	}
+
+	w, err := k.c.Nodes().Watch(l, fields.Everything(), "")
+
+	if err != nil {
+		return nil, err
+	}
+	return w, nil
 }
 
 func (k *Kube) GetNodePortForServiceByPortName(s *api.Service, portName string) (int, error) {
