@@ -20,18 +20,19 @@ The ```lbaasd``` K8S nodes watcher engine
 
 The ```lbaasd``` K8S services watcher engine
 -------------------------------------
-1. On startup, the K8S services watcher engine checks etcd for the list of services that it should be watching and does an initial poll of K8S for NodePort mappings.  Once received, this list is sent to the load balancer update engine via channel
-2. Subsequently, the engine then watches K8S for services changes and sends the load balancer update engine (via channel) any changes that it receives.
+1. On startup, the K8S services watcher engine checks etcd (via kubernetes controller) for the list of services that it should be watching.
+2. Next, it sets up a watcher (via kubernetes controller) on all services and notifies the LB update engine via channel if any changes are noted for any of the watched services.
+3. Next, it does an initial poll of K8S for NodePort mappings (via kubernetes controller).  Once received, a call is made to the LB controller to check these mappings against existing VIPs.
 
 The ```lbaasd``` load balancer update engine
 -------------------------------------
-1. On startup, the load balancer update engine first polls etcd (via LB controller) for the list of VIPs that it will be managing.
+1. On startup, the load balancer update engine first polls etcd (via LB controller -> etcd model) for the list of VIPs that it will be managing.
 3. Next, it queries ```cidrd``` with a ```GET``` (via cidrd controller) to request an initial dump of all UUID->IP mappings for the existing VIPs.  
 3. It then queries ```cidrd``` (via cidrd controller) to register IPs for any VIPs lacking an IP UUID in etcd and calls the DNS controller to make any required DNS updates (which propagate to etcd)  
 4. As soon as the engine has current IP registrations, NodePort mappings (from services watcher engine), and a nodes list (from nodes watcher engine), it calls to the load balancer controller to do a VIP-by-VIP inspection of LB pool members to ensure that they align with living Kubernetes nodes.
 5. sends corresponding update events to the DNS updater engine.  
-6. Subsequently, the load balancer updaate engine listens on channels for update events from the nodes and services engines and updates VIPs as necessary.
-7. The engine also watches etcd for VIP deletion events.  If a VIP is deleted, the deletion is propagated to the load balancer, the services watcher, and the DNS updater.   Subsequently, a DELETE event is sent to cidrd.
+6. Subsequently, the load balancer update engine listens on channels for update events from the nodes and services engines and updates VIPs as necessary.
+7. The engine also gets a watcher (via lb controller -> etcd model) to watch for VIP deletion events.  If a VIP is deleted, the deletion is propagated to the load balancer (via lb controller), the services watcher (via kubernetes controller), and the DNS updater (via dns controller).   Subsequently, a DELETE event is sent to cidrd (via cidrd controller).
 
 The ```lbaasd``` IP renewal engine
 -------------------------------------
@@ -40,7 +41,7 @@ The ```lbaasd``` IP renewal engine
 
 The ```lbaasd``` DNS updater engine
 -----------------------------------
-1. On startup, the DNS updater engine starts up and listens on channels for events (consisting of a service name and an IP) from the load balancer update engine.  Whenever an incoming event is received, it updates etcd with the latest mapping.
+1. On startup, the DNS updater engine starts up and listens on channels for events (consisting of a service name and an IP) from the load balancer update engine.  Whenever an incoming event is received, it updates [dns service] (via dns controller) with the latest mapping.
 
 Once ```lbaasd``` has started
 -----------------------------
