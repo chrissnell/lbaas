@@ -1,7 +1,0 @@
-{
-  "name": "SomeDumbVIP",
-  "frontend_ip_class": "private",
-  "frontend_port": 80,
-  "frontend_protocol": "HTTP",
-  "kube_service_name": "some-dumb-service"
-}
