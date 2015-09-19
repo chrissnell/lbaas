@@ -1,4 +1,4 @@
-package servicesengine
+package controller
 
 import (
 	"fmt"
@@ -22,15 +22,15 @@ type ServiceChangeMessage struct {
 	Action ServiceStatus
 }
 
-type Engine struct {
+type ServicesEngine struct {
 	sync.Mutex
 	m                 *model.Model
 	activeNodes       map[string]string // node_UID -> node_IP
 	ServiceChangeChan chan ServiceChangeMessage
 }
 
-func New(m *model.Model) *Engine {
-	e := &Engine{
+func NewServicesEngine(m *model.Model) *ServicesEngine {
+	e := &ServicesEngine{
 		m:                 m,
 		activeNodes:       make(map[string]string),
 		ServiceChangeChan: make(chan ServiceChangeMessage, 100),
@@ -42,7 +42,7 @@ func New(m *model.Model) *Engine {
 	return e
 }
 
-func (e *Engine) start() {
+func (e *ServicesEngine) start() {
 	ticker := time.NewTicker(time.Second * 5)
 
 	for {
@@ -69,14 +69,14 @@ func (e *Engine) start() {
 
 }
 
-func (e *Engine) addService(uid, ip string) error {
+func (e *ServicesEngine) addService(uid, ip string) error {
 	e.Lock()
 	defer e.Unlock()
 
 	return nil
 }
 
-func (e *Engine) deleteService(uid string) error {
+func (e *ServicesEngine) deleteService(uid string) error {
 	e.Lock()
 	defer e.Unlock()
 

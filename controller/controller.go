@@ -5,18 +5,16 @@ import (
 
 	"github.com/chrissnell/lbaas/config"
 	"github.com/chrissnell/lbaas/controller/restapi"
-	"github.com/chrissnell/lbaas/engines/kubernetes/nodes"
-	"github.com/chrissnell/lbaas/engines/kubernetes/services"
 	"github.com/chrissnell/lbaas/model"
 )
 
 type Controller struct {
-	c                     config.Config
-	m                     *model.Model
-	R                     *restapi.RestAPI
-	WS                    *restful.WebService
-	NodesWatcherEngine    *nodesengine.Engine
-	ServicesWatcherEngine *servicesengine.Engine
+	c  config.Config
+	m  *model.Model
+	R  *restapi.RestAPI
+	WS *restful.WebService
+	NE *NodesEngine
+	SE *ServicesEngine
 }
 
 // New will create a new Controller
@@ -31,10 +29,10 @@ func New(config config.Config, m *model.Model) *Controller {
 	c.R = restapi.New(config, m)
 
 	// Create and start the Nodes watcher engine
-	c.NodesWatcherEngine = nodesengine.New(m)
+	c.NE = NewNodesEngine(m)
 
 	// Create and start the Services watcher engine
-	c.ServicesWatcherEngine = servicesengine.New(m)
+	c.SE = NewServicesEngine(m)
 
 	// Start routing the API
 	c.WS = c.APIRouter()

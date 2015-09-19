@@ -1,4 +1,4 @@
-package nodesengine
+package controller
 
 import (
 	"fmt"
@@ -24,15 +24,15 @@ type NodeChangeMessage struct {
 	Action NodeStatus
 }
 
-type Engine struct {
+type NodesEngine struct {
 	sync.Mutex
 	m              *model.Model
 	activeNodes    map[string]string // node_UID -> node_IP
 	NodeChangeChan chan NodeChangeMessage
 }
 
-func New(m *model.Model) *Engine {
-	e := &Engine{
+func NewNodesEngine(m *model.Model) *NodesEngine {
+	e := &NodesEngine{
 		m:              m,
 		activeNodes:    make(map[string]string),
 		NodeChangeChan: make(chan NodeChangeMessage, 100),
@@ -44,7 +44,7 @@ func New(m *model.Model) *Engine {
 	return e
 }
 
-func (e *Engine) start() {
+func (e *NodesEngine) start() {
 	ticker := time.NewTicker(time.Second * 5)
 
 	for {
@@ -71,21 +71,21 @@ func (e *Engine) start() {
 
 }
 
-func (e *Engine) addNode(uid, ip string) error {
+func (e *NodesEngine) addNode(uid, ip string) error {
 	e.Lock()
 	defer e.Unlock()
 
 	return nil
 }
 
-func (e *Engine) removeNode(uid string) error {
+func (e *NodesEngine) removeNode(uid string) error {
 	e.Lock()
 	defer e.Unlock()
 
 	return nil
 }
 
-func (e *Engine) RefreshAllServices() error {
+func (e *NodesEngine) RefreshAllServices() error {
 	e.Lock()
 	defer e.Unlock()
 
