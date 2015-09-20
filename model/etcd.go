@@ -59,20 +59,51 @@ func (s *Store) keyPath(k string) string {
 }
 
 // GetVIP will fetch a VIP from etcd
-func (s *Store) GetVIP(v string) (*VIP, error) {
-	var dv *VIP
+func (s *Store) GetVIP(n string) (*VIP, error) {
+	var v *VIP
 
-	er, err := s.SafeGet(s.keyPath(v), true, false)
+	er, err := s.SafeGet(s.keyPath(n), true, false)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Error fetching /vips/%v : %v", v, err))
+		return nil, errors.New(fmt.Sprintf("Error fetching /vips/%v : %v", n, err))
 	}
 
-	err = json.Unmarshal([]byte(er.Node.Value), &dv)
+	err = json.Unmarshal([]byte(er.Node.Value), &v)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Error decoding response from etcd:", err))
 	}
 
-	return dv, nil
+	return v, nil
+}
+
+func (s *Store) GetAllVIPs() ([]*VIP, error) {
+	var vs []*VIP
+
+	opt := &client.GetOptions{
+		Recursive: true,
+		Sort:      true,
+		Quorum:    true,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ks, err := s.k.Get(ctx, s.keyPath(""), opt)
+	if err != nil {
+		log.Fatalln("Error fetching keys:", err)
+	}
+
+	for _, kv := range ks.Node.Nodes {
+		uv := new(VIP)
+
+		err = json.Unmarshal([]byte(kv.Value), &uv)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Error decoding response from etcd:", err))
+		}
+
+		vs = append(vs, uv)
+	}
+
+	return vs, nil
 }
 
 func (s *Store) SetVIP(v *VIP) error {

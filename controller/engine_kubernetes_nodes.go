@@ -6,6 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/watch"
+
 	"github.com/chrissnell/lbaas/model"
 	"github.com/chrissnell/lbaas/util/log"
 )
@@ -27,6 +30,7 @@ type NodeChangeMessage struct {
 type NodesEngine struct {
 	sync.Mutex
 	m              *model.Model
+	w              watch.Interface
 	activeNodes    map[string]string // node_UID -> node_IP
 	NodeChangeChan chan NodeChangeMessage
 }
@@ -45,6 +49,14 @@ func NewNodesEngine(m *model.Model) *NodesEngine {
 }
 
 func (e *NodesEngine) start() {
+
+	watcher, err := e.m.K.NewKubeNodesWatcher(api.NamespaceDefault, nil)
+	if err != nil {
+		// This needs to reconnect...
+		log.Println("Unable to get a Nodes watcher:", err)
+	}
+	e.w = watcher
+
 	ticker := time.NewTicker(time.Second * 5)
 
 	for {
@@ -79,13 +91,6 @@ func (e *NodesEngine) addNode(uid, ip string) error {
 }
 
 func (e *NodesEngine) removeNode(uid string) error {
-	e.Lock()
-	defer e.Unlock()
-
-	return nil
-}
-
-func (e *NodesEngine) RefreshAllServices() error {
 	e.Lock()
 	defer e.Unlock()
 

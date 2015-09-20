@@ -50,6 +50,11 @@ func (e *ServicesEngine) start() {
 		case <-ticker.C:
 			logger.Log("The services engine is ticking...")
 
+			vips, err := e.m.S.GetAllVIPs()
+			for _, v := range vips {
+				log.Println("VIP:", v.Name)
+			}
+
 			sl, err := e.m.K.GetAllKubeServices("")
 			if err != nil {
 				logger.Log(fmt.Sprintln("Could not get all services:", err))
