@@ -14,6 +14,7 @@ type Controller struct {
 	R  *restapi.RestAPI
 	WS *restful.WebService
 	NE *NodesEngine
+	LB *LBEngine
 	SE *ServicesEngine
 }
 
@@ -33,6 +34,9 @@ func New(config config.Config, m *model.Model) *Controller {
 
 	// Create and start the Services watcher engine
 	c.SE = NewServicesEngine(m)
+
+	// Create and start the LB updater engine
+	c.LB = NewLBEngine(m, c.NE.NodeChangeChan)
 
 	// Start routing the API
 	c.WS = c.APIRouter()

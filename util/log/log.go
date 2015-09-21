@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func Log(message string) {
+func Log(message ...string) {
 	_, caller, line, ok := runtime.Caller(1)
 	if ok {
 		tr := regexp.MustCompile(`(/([^/]*))+$`)

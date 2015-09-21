@@ -13,18 +13,14 @@ import (
 	"github.com/chrissnell/lbaas/util/log"
 )
 
-const (
-	nodeAdded NodeStatus = iota
-	nodeDeleted
-)
-
 // Bryan's idea: goroutines for each node with a pub-sub channel (tv42's topic) to broadcast when nodes go away
 
-type NodeStatus int
-
 type NodeChangeMessage struct {
-	UID    string
-	Action NodeStatus
+	Type      watch.EventType
+	UID       string
+	Event     watch.Event
+	NodeReady bool
+	Hostname  string
 }
 
 type NodesEngine struct {
@@ -49,18 +45,39 @@ func NewNodesEngine(m *model.Model) *NodesEngine {
 }
 
 func (e *NodesEngine) start() {
-
-	watcher, err := e.m.K.NewKubeNodesWatcher(api.NamespaceDefault, nil)
+	var err error
+	e.w, err = e.m.K.NewKubeNodesWatcher(api.NamespaceDefault, nil)
 	if err != nil {
 		// This needs to reconnect...
 		log.Println("Unable to get a Nodes watcher:", err)
 	}
-	e.w = watcher
 
 	ticker := time.NewTicker(time.Second * 5)
 
 	for {
 		select {
+		case ev := <-e.w.ResultChan():
+
+			if ev.Type == watch.Modified || ev.Type == watch.Added || ev.Type == watch.Deleted {
+
+				msg := NodeChangeMessage{
+					Type: ev.Type,
+					UID:  fmt.Sprint(ev.Object.(*api.Node).UID),
+					// Currently using the first address in the array...maybe we should send them all?
+					Hostname: ev.Object.(*api.Node).Status.Addresses[0].Address,
+					Event:    ev,
+				}
+
+				if ev.Object.(*api.Node).Status.Conditions[0].Status == api.ConditionTrue {
+					msg.NodeReady = true
+				} else {
+					msg.NodeReady = false
+				}
+
+				// log.Printf("Sending NodeChangMessage: %+v\n", msg)
+
+				e.NodeChangeChan <- msg
+			}
 		case <-ticker.C:
 			logger.Log("The nodes engine is ticking...")
 
@@ -73,11 +90,6 @@ func (e *NodesEngine) start() {
 				log.Println("Node:", i.Name, i.ObjectMeta.UID)
 			}
 
-			msg := NodeChangeMessage{
-				UID:    "12345",
-				Action: nodeAdded,
-			}
-			e.NodeChangeChan <- msg
 		}
 	}
 
