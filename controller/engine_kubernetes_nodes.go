@@ -4,21 +4,20 @@ import (
 	"fmt"
 	"log"
 	"sync"
-	"time"
 
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/controller/framework"
 	"k8s.io/kubernetes/pkg/watch"
 
 	"github.com/chrissnell/lbaas/model"
-	"github.com/chrissnell/lbaas/util/log"
 )
 
 // Bryan's idea: goroutines for each node with a pub-sub channel (tv42's topic) to broadcast when nodes go away
 
 type NodeChangeMessage struct {
-	Type      watch.EventType
 	UID       string
 	Event     watch.Event
+	EventType watch.EventType
 	NodeReady bool
 	Hostname  string
 }
@@ -26,7 +25,6 @@ type NodeChangeMessage struct {
 type NodesEngine struct {
 	sync.Mutex
 	m              *model.Model
-	w              watch.Interface
 	activeNodes    map[string]string // node_UID -> node_IP
 	NodeChangeChan chan NodeChangeMessage
 }
@@ -45,54 +43,44 @@ func NewNodesEngine(m *model.Model) *NodesEngine {
 }
 
 func (e *NodesEngine) start() {
-	var err error
-	e.w, err = e.m.K.NewKubeNodesWatcher(api.NamespaceDefault, nil)
-	if err != nil {
-		// This needs to reconnect...
-		log.Println("Unable to get a Nodes watcher:", err)
-	}
 
-	ticker := time.NewTicker(time.Second * 5)
+	// keyFunc for endpoints and services.
+	keyFunc := framework.DeletionHandlingMetaNamespaceKeyFunc
+
+	<-e.m.KubeWorkQueueReady
 
 	for {
-		select {
-		case ev := <-e.w.ResultChan():
+		if e.m.K.NodeQueue != nil {
+			item, _ := e.m.K.NodeQueue.Get()
+			ev := item.(model.QueueEvent).Obj
+			evtype := item.(model.QueueEvent).ObjType
+			key, _ := keyFunc(ev)
 
-			if ev.Type == watch.Modified || ev.Type == watch.Added || ev.Type == watch.Deleted {
+			log.Printf("NODE Sync triggered by  %v\n", key)
+			log.Printf("---->  [%v] UID: %v", ev.(*api.Node).Status.Addresses[0].Address, ev.(*api.Node).UID)
+			log.Println("---->  Status:", ev.(*api.Node).Status.Conditions[0].Status)
+			log.Println("---->  Message:", ev.(*api.Node).Status.Conditions[0].Message)
+			log.Println("--- >  Reason:", ev.(*api.Node).Status.Conditions[0].Reason)
+			log.Println("---->  Condition Type:", ev.(*api.Node).Status.Conditions[0].Type)
 
-				msg := NodeChangeMessage{
-					Type: ev.Type,
-					UID:  fmt.Sprint(ev.Object.(*api.Node).UID),
-					// Currently using the first address in the array...maybe we should send them all?
-					Hostname: ev.Object.(*api.Node).Status.Addresses[0].Address,
-					Event:    ev,
-				}
-
-				if ev.Object.(*api.Node).Status.Conditions[0].Status == api.ConditionTrue {
-					msg.NodeReady = true
-				} else {
-					msg.NodeReady = false
-				}
-
-				// log.Printf("Sending NodeChangMessage: %+v\n", msg)
-
-				e.NodeChangeChan <- msg
-			}
-		case <-ticker.C:
-			logger.Log("The nodes engine is ticking...")
-
-			nl, err := e.m.K.GetAllKubeNodes("")
-			if err != nil {
-				logger.Log(fmt.Sprintln("Could not get all nodes:", err))
+			msg := NodeChangeMessage{
+				UID:       fmt.Sprint(ev.(*api.Node).UID),
+				Hostname:  ev.(*api.Node).Status.Addresses[0].Address,
+				Event:     ev.(watch.Event),
+				EventType: evtype,
 			}
 
-			for _, i := range nl.Items {
-				log.Println("Node:", i.Name, i.ObjectMeta.UID)
+			if ev.(*api.Node).Status.Conditions[0].Status == api.ConditionTrue {
+				msg.NodeReady = true
+			} else {
+				msg.NodeReady = false
 			}
 
+			e.NodeChangeChan <- msg
+
+			e.m.K.NodeQueue.Done(ev)
 		}
 	}
-
 }
 
 func (e *NodesEngine) addNode(uid, ip string) error {

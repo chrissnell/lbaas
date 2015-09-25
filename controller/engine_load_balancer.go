@@ -41,18 +41,18 @@ func (e *LBEngine) start() {
 
 				// Delete from activeNodes if the node is not ready
 				if !ev.NodeReady {
-					log.Println("Received a", ev.Type, "message for", ev.UID)
+					log.Println("Received a", ev.EventType, "message for", ev.UID)
 					log.Println("   ---> DELETING from activeNodes")
 					delete(e.activeNodes, ev.UID)
 				} else {
 					// If the node is ready and it's a MODIFY even, update the IP.
-					log.Println("Received a", ev.Type, "message for", ev.UID)
+					log.Println("Received a", ev.EventType, "message for", ev.UID)
 					log.Println("   ---> UPDATING activeNodes")
 					e.activeNodes[ev.UID] = ev.Hostname
 				}
 			} else {
 				// This node is not in activeNodes
-				log.Println("Received a", ev.Type, "message for", ev.UID)
+				log.Println("Received a", ev.EventType, "message for", ev.UID)
 				log.Println("   ---> ADDING to activeNodes")
 				// So we add it to activeNodes
 				e.activeNodes[ev.UID] = ev.Hostname

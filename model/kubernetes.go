@@ -2,22 +2,42 @@ package model
 
 import (
 	"fmt"
+	"reflect"
+	"time"
 
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/client/cache"
 	client "k8s.io/kubernetes/pkg/client/unversioned"
+	"k8s.io/kubernetes/pkg/controller/framework"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/util"
+	"k8s.io/kubernetes/pkg/util/workqueue"
 	"k8s.io/kubernetes/pkg/watch"
 
 	"github.com/chrissnell/lbaas/config"
 )
 
 type Kube struct {
-	c *client.Client
+	c                 *client.Client
+	serviceController *framework.Controller
+	nodeController    *framework.Controller
+	NodeQueue         *workqueue.Type
+	ServiceQueue      *workqueue.Type
+	nodeLister        cache.StoreToNodeLister
+	serviceLister     cache.StoreToServiceLister
 }
 
-func (k *Kube) New(c config.Config) (*Kube, error) {
-	k8s := &Kube{}
+type QueueEvent struct {
+	Obj     interface{}
+	ObjType watch.EventType
+}
+
+func (k *Kube) New(c config.Config, workQueueReady chan struct{}) (*Kube, error) {
+	const resyncPeriod = 10 * time.Second
+	var err error
+
+	kube := &Kube{}
 
 	conf := client.Config{
 		Host: c.Kubernetes.APIendpoint,
@@ -32,13 +52,82 @@ func (k *Kube) New(c config.Config) (*Kube, error) {
 		conf.Password = c.Kubernetes.Password
 	}
 
-	kc, err := client.New(&conf)
+	kube.c, err = client.New(&conf)
 	if err != nil {
 		return nil, err
 	}
 
-	k8s.c = kc
-	return k8s, nil
+	k.NodeQueue = workqueue.New()
+	k.ServiceQueue = workqueue.New()
+
+	// We will hardcode our namespace for now.
+	namespace := api.NamespaceAll
+
+	// Set up our enqueing function for node objects
+	nodeEnqueueAsAdd := func(obj interface{}) {
+		k.NodeQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Added})
+	}
+
+	nodeEnqueueAsDelete := func(obj interface{}) {
+		k.NodeQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Deleted})
+	}
+
+	nodeEnqueueAsUpdate := func(obj interface{}) {
+		k.NodeQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Modified})
+	}
+
+	// and one for service objects, too
+	serviceEnqueueAsAdd := func(obj interface{}) {
+		k.ServiceQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Added})
+	}
+
+	serviceEnqueueAsDelete := func(obj interface{}) {
+		k.ServiceQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Deleted})
+	}
+
+	serviceEnqueueAsUpdate := func(obj interface{}) {
+		k.ServiceQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Modified})
+	}
+
+	// Set up our event handlers.  These get called every time the cache client gets a new event from the API.
+	nodeEventHandlers := framework.ResourceEventHandlerFuncs{
+		AddFunc:    nodeEnqueueAsAdd,
+		DeleteFunc: nodeEnqueueAsDelete,
+		UpdateFunc: func(old, cur interface{}) {
+			// We're only going to add updates to the queue when the node condition changes
+			if old.(*api.Node).Status.Conditions[0].Status != cur.(*api.Node).Status.Conditions[0].Status {
+				nodeEnqueueAsUpdate(cur)
+			}
+		},
+	}
+
+	serviceEventHandlers := framework.ResourceEventHandlerFuncs{
+		AddFunc:    serviceEnqueueAsAdd,
+		DeleteFunc: serviceEnqueueAsDelete,
+		UpdateFunc: func(old, cur interface{}) {
+			if !reflect.DeepEqual(old, cur) {
+				serviceEnqueueAsUpdate(cur)
+			}
+		},
+	}
+
+	k.nodeLister.Store, k.nodeController = framework.NewInformer(
+		cache.NewListWatchFromClient(
+			kube.c, "nodes", namespace, fields.Everything()),
+		&api.Node{}, resyncPeriod, nodeEventHandlers)
+
+	k.serviceLister.Store, k.serviceController = framework.NewInformer(
+		cache.NewListWatchFromClient(
+			kube.c, "services", namespace, fields.Everything()),
+		&api.Service{}, resyncPeriod, serviceEventHandlers)
+
+	go k.serviceController.Run(util.NeverStop)
+	go k.nodeController.Run(util.NeverStop)
+
+	// Signal that the queue is ready
+	close(workQueueReady)
+
+	return kube, nil
 }
 
 // Gets a service by name, for a given namespace
@@ -65,39 +154,6 @@ func (k *Kube) GetAllKubeServices(namespace string) (*api.ServiceList, error) {
 	}
 
 	return sl, nil
-}
-
-func (k *Kube) NewKubeServicesWatcher(namespace string, l labels.Selector) (watch.Interface, error) {
-	if namespace == "" {
-		namespace = api.NamespaceDefault
-	}
-
-	if l == nil {
-		l = labels.Everything()
-	}
-
-	w, err := k.c.Services(namespace).Watch(l, fields.Everything(), "")
-	if err != nil {
-		return nil, err
-	}
-	return w, nil
-}
-
-func (k *Kube) NewKubeNodesWatcher(namespace string, l labels.Selector) (watch.Interface, error) {
-	if namespace == "" {
-		namespace = api.NamespaceDefault
-	}
-
-	if l == nil {
-		l = labels.Everything()
-	}
-
-	w, err := k.c.Nodes().Watch(l, fields.Everything(), "")
-
-	if err != nil {
-		return nil, err
-	}
-	return w, nil
 }
 
 func (k *Kube) GetNodePortForServiceByPortName(s *api.Service, portName string) (int, error) {

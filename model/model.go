@@ -37,29 +37,33 @@ type LoadBalancer interface {
 
 // Model contains the data model with the associated etcd Client
 type Model struct {
-	c  config.Config
-	LB LoadBalancer
-	S  *Store
-	K  *Kube
+	c                  config.Config
+	LB                 LoadBalancer
+	S                  *Store
+	K                  *Kube
+	KubeWorkQueueReady chan struct{}
 }
 
 // New creates a new data model with a new DB connection and Kube API client
 func New(lb LoadBalancer, c config.Config) *Model {
 
+	KubeWorkQueueReady := make(chan struct{})
+
 	s := &Store{}
 	s = s.New(c)
 
 	k := &Kube{}
-	k, err := k.New(c)
+	k, err := k.New(c, KubeWorkQueueReady)
 	if err != nil {
 		log.Fatalln("Error creating Kubernetes client:", err)
 	}
 
 	m := &Model{
-		S:  s,
-		K:  k,
-		LB: lb.(LoadBalancer),
-		c:  c,
+		S:                  s,
+		K:                  k,
+		LB:                 lb.(LoadBalancer),
+		c:                  c,
+		KubeWorkQueueReady: KubeWorkQueueReady,
 	}
 
 	return m
