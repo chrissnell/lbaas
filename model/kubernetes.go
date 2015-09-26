@@ -57,36 +57,36 @@ func (k *Kube) New(c config.Config, workQueueReady chan struct{}) (*Kube, error)
 		return nil, err
 	}
 
-	k.NodeQueue = workqueue.New()
-	k.ServiceQueue = workqueue.New()
+	kube.NodeQueue = workqueue.New()
+	kube.ServiceQueue = workqueue.New()
 
 	// We will hardcode our namespace for now.
 	namespace := api.NamespaceAll
 
 	// Set up our enqueing function for node objects
 	nodeEnqueueAsAdd := func(obj interface{}) {
-		k.NodeQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Added})
+		kube.NodeQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Added})
 	}
 
 	nodeEnqueueAsDelete := func(obj interface{}) {
-		k.NodeQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Deleted})
+		kube.NodeQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Deleted})
 	}
 
 	nodeEnqueueAsUpdate := func(obj interface{}) {
-		k.NodeQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Modified})
+		kube.NodeQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Modified})
 	}
 
 	// and one for service objects, too
 	serviceEnqueueAsAdd := func(obj interface{}) {
-		k.ServiceQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Added})
+		kube.ServiceQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Added})
 	}
 
 	serviceEnqueueAsDelete := func(obj interface{}) {
-		k.ServiceQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Deleted})
+		kube.ServiceQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Deleted})
 	}
 
 	serviceEnqueueAsUpdate := func(obj interface{}) {
-		k.ServiceQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Modified})
+		kube.ServiceQueue.Add(QueueEvent{Obj: obj, ObjType: watch.Modified})
 	}
 
 	// Set up our event handlers.  These get called every time the cache client gets a new event from the API.
@@ -111,7 +111,7 @@ func (k *Kube) New(c config.Config, workQueueReady chan struct{}) (*Kube, error)
 		},
 	}
 
-	k.nodeLister.Store, k.nodeController = framework.NewInformer(
+	kube.nodeLister.Store, kube.nodeController = framework.NewInformer(
 		cache.NewListWatchFromClient(
 			kube.c, "nodes", namespace, fields.Everything()),
 		&api.Node{}, resyncPeriod, nodeEventHandlers)
@@ -121,8 +121,8 @@ func (k *Kube) New(c config.Config, workQueueReady chan struct{}) (*Kube, error)
 			kube.c, "services", namespace, fields.Everything()),
 		&api.Service{}, resyncPeriod, serviceEventHandlers)
 
-	go k.serviceController.Run(util.NeverStop)
-	go k.nodeController.Run(util.NeverStop)
+	go kube.serviceController.Run(util.NeverStop)
+	go kube.nodeController.Run(util.NeverStop)
 
 	// Signal that the queue is ready
 	close(workQueueReady)

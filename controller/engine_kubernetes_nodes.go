@@ -16,7 +16,7 @@ import (
 
 type NodeChangeMessage struct {
 	UID       string
-	Event     watch.Event
+	Event     *api.Node
 	EventType watch.EventType
 	NodeReady bool
 	Hostname  string
@@ -66,7 +66,7 @@ func (e *NodesEngine) start() {
 			msg := NodeChangeMessage{
 				UID:       fmt.Sprint(ev.(*api.Node).UID),
 				Hostname:  ev.(*api.Node).Status.Addresses[0].Address,
-				Event:     ev.(watch.Event),
+				Event:     ev.(*api.Node),
 				EventType: evtype,
 			}
 
