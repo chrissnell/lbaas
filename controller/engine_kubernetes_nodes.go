@@ -47,8 +47,6 @@ func (e *NodesEngine) start() {
 	// keyFunc for endpoints and services.
 	keyFunc := framework.DeletionHandlingMetaNamespaceKeyFunc
 
-	<-e.m.KubeWorkQueueReady
-
 	for {
 		if e.m.K.NodeQueue != nil {
 			item, _ := e.m.K.NodeQueue.Get()

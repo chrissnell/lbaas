@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -43,6 +42,7 @@ func NewServicesEngine(m *model.Model) *ServicesEngine {
 }
 
 func (e *ServicesEngine) start() {
+
 	ticker := time.NewTicker(time.Second * 5)
 
 	for {
@@ -51,18 +51,23 @@ func (e *ServicesEngine) start() {
 			logger.Log("The services engine is ticking...")
 
 			vips, err := e.m.S.GetAllVIPs()
+			if err != nil {
+				log.Println("Cannot get all VIPs from etcd")
+				continue
+			}
+
 			for _, v := range vips {
 				log.Println("VIP:", v.Name)
 			}
 
-			sl, err := e.m.K.GetAllKubeServices("")
-			if err != nil {
-				logger.Log(fmt.Sprintln("Could not get all services:", err))
-			}
+			// sl, err := e.m.K.GetAllKubeServices("")
+			// if err != nil {
+			// 	logger.Log(fmt.Sprintln("Could not get all services:", err))
+			// }
 
-			for _, i := range sl.Items {
-				log.Println("Service:", i.Name, i.ObjectMeta.UID)
-			}
+			// for _, i := range sl.Items {
+			// 	log.Println("Service:", i.Name, i.ObjectMeta.UID)
+			// }
 
 			msg := ServiceChangeMessage{
 				UID:    "12345",

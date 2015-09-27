@@ -10,7 +10,6 @@ import (
 	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/controller/framework"
 	"k8s.io/kubernetes/pkg/fields"
-	"k8s.io/kubernetes/pkg/labels"
 	"k8s.io/kubernetes/pkg/util"
 	"k8s.io/kubernetes/pkg/util/workqueue"
 	"k8s.io/kubernetes/pkg/watch"
@@ -24,8 +23,8 @@ type Kube struct {
 	nodeController    *framework.Controller
 	NodeQueue         *workqueue.Type
 	ServiceQueue      *workqueue.Type
-	nodeLister        cache.StoreToNodeLister
-	serviceLister     cache.StoreToServiceLister
+	NodeLister        cache.StoreToNodeLister
+	ServiceLister     cache.StoreToServiceLister
 }
 
 type QueueEvent struct {
@@ -111,12 +110,12 @@ func (k *Kube) New(c config.Config, workQueueReady chan struct{}) (*Kube, error)
 		},
 	}
 
-	kube.nodeLister.Store, kube.nodeController = framework.NewInformer(
+	kube.NodeLister.Store, kube.nodeController = framework.NewInformer(
 		cache.NewListWatchFromClient(
 			kube.c, "nodes", namespace, fields.Everything()),
 		&api.Node{}, resyncPeriod, nodeEventHandlers)
 
-	k.serviceLister.Store, k.serviceController = framework.NewInformer(
+	kube.ServiceLister.Store, kube.serviceController = framework.NewInformer(
 		cache.NewListWatchFromClient(
 			kube.c, "services", namespace, fields.Everything()),
 		&api.Service{}, resyncPeriod, serviceEventHandlers)
@@ -136,11 +135,16 @@ func (k *Kube) GetKubeService(s string, namespace string) (*api.Service, error) 
 		namespace = api.NamespaceDefault
 	}
 
-	svc, err := k.c.Services(namespace).Get(s)
+	key := fmt.Sprint(namespace, "/", s)
+
+	svc, exists, err := k.ServiceLister.Store.GetByKey(key)
+	if !exists {
+		return nil, fmt.Errorf("Service %v does not exist in namespace %v", s, namespace)
+	}
 	if err != nil {
 		return nil, err
 	}
-	return svc, nil
+	return svc.(*api.Service), nil
 }
 
 func (k *Kube) GetAllKubeServices(namespace string) (*api.ServiceList, error) {
@@ -148,12 +152,12 @@ func (k *Kube) GetAllKubeServices(namespace string) (*api.ServiceList, error) {
 		namespace = api.NamespaceDefault
 	}
 
-	sl, err := k.c.Services(namespace).List(labels.Everything())
+	sl, err := k.ServiceLister.List()
 	if err != nil {
 		return nil, err
 	}
 
-	return sl, nil
+	return &sl, nil
 }
 
 func (k *Kube) GetNodePortForServiceByPortName(s *api.Service, portName string) (int, error) {
@@ -192,9 +196,9 @@ func (k *Kube) GetAllKubeNodes(namespace string) (*api.NodeList, error) {
 		namespace = api.NamespaceDefault
 	}
 
-	nl, err := k.c.Nodes().List(labels.Everything(), fields.Everything())
+	nodes, err := k.NodeLister.List()
 	if err != nil {
 		return nil, err
 	}
-	return nl, nil
+	return &nodes, nil
 }
