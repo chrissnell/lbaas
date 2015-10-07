@@ -48,36 +48,34 @@ func (e *NodesEngine) start() {
 	keyFunc := framework.DeletionHandlingMetaNamespaceKeyFunc
 
 	for {
-		if e.m.K.NodeQueue != nil {
-			item, _ := e.m.K.NodeQueue.Get()
-			ev := item.(model.QueueEvent).Obj
-			evtype := item.(model.QueueEvent).ObjType
-			key, _ := keyFunc(ev)
+		item, _ := e.m.K.NodeQueue.Get()
+		ev := item.(model.QueueEvent).Obj
+		evtype := item.(model.QueueEvent).ObjType
+		key, _ := keyFunc(ev)
 
-			log.Printf("NODE Sync triggered by  %v\n", key)
-			log.Printf("---->  [%v] UID: %v", ev.(*api.Node).Status.Addresses[0].Address, ev.(*api.Node).UID)
-			log.Println("---->  Status:", ev.(*api.Node).Status.Conditions[0].Status)
-			log.Println("---->  Message:", ev.(*api.Node).Status.Conditions[0].Message)
-			log.Println("--- >  Reason:", ev.(*api.Node).Status.Conditions[0].Reason)
-			log.Println("---->  Condition Type:", ev.(*api.Node).Status.Conditions[0].Type)
+		log.Printf("NODE Sync triggered by  %v\n", key)
+		log.Printf("---->  [%v] UID: %v", ev.(*api.Node).Status.Addresses[0].Address, ev.(*api.Node).UID)
+		log.Println("---->  Status:", ev.(*api.Node).Status.Conditions[0].Status)
+		log.Println("---->  Message:", ev.(*api.Node).Status.Conditions[0].Message)
+		log.Println("--- >  Reason:", ev.(*api.Node).Status.Conditions[0].Reason)
+		log.Println("---->  Condition Type:", ev.(*api.Node).Status.Conditions[0].Type)
 
-			msg := NodeChangeMessage{
-				UID:       fmt.Sprint(ev.(*api.Node).UID),
-				Hostname:  ev.(*api.Node).Status.Addresses[0].Address,
-				Event:     ev.(*api.Node),
-				EventType: evtype,
-			}
-
-			if ev.(*api.Node).Status.Conditions[0].Status == api.ConditionTrue {
-				msg.NodeReady = true
-			} else {
-				msg.NodeReady = false
-			}
-
-			e.NodeChangeChan <- msg
-
-			e.m.K.NodeQueue.Done(ev)
+		msg := NodeChangeMessage{
+			UID:       fmt.Sprint(ev.(*api.Node).UID),
+			Hostname:  ev.(*api.Node).Status.Addresses[0].Address,
+			Event:     ev.(*api.Node),
+			EventType: evtype,
 		}
+
+		if ev.(*api.Node).Status.Conditions[0].Status == api.ConditionTrue {
+			msg.NodeReady = true
+		} else {
+			msg.NodeReady = false
+		}
+
+		e.NodeChangeChan <- msg
+
+		e.m.K.NodeQueue.Done(ev)
 	}
 }
 

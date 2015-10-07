@@ -18,13 +18,13 @@ import (
 )
 
 type Kube struct {
-	c                 *client.Client
-	serviceController *framework.Controller
-	nodeController    *framework.Controller
 	NodeQueue         *workqueue.Type
 	ServiceQueue      *workqueue.Type
 	NodeLister        cache.StoreToNodeLister
 	ServiceLister     cache.StoreToServiceLister
+	c                 *client.Client
+	serviceController *framework.Controller
+	nodeController    *framework.Controller
 }
 
 type QueueEvent struct {
@@ -32,7 +32,7 @@ type QueueEvent struct {
 	ObjType watch.EventType
 }
 
-func (k *Kube) New(c config.Config, workQueueReady chan struct{}) (*Kube, error) {
+func NewKubeClient(c config.Config, workQueueReady chan struct{}) (*Kube, error) {
 	const resyncPeriod = 10 * time.Second
 	var err error
 
@@ -132,7 +132,7 @@ func (k *Kube) New(c config.Config, workQueueReady chan struct{}) (*Kube, error)
 // Gets a service by name, for a given namespace
 func (k *Kube) GetKubeService(s string, namespace string) (*api.Service, error) {
 	if namespace == "" {
-		namespace = api.NamespaceDefault
+		namespace = api.NamespaceAll
 	}
 
 	key := fmt.Sprint(namespace, "/", s)
@@ -158,6 +158,19 @@ func (k *Kube) GetAllKubeServices(namespace string) (*api.ServiceList, error) {
 	}
 
 	return &sl, nil
+}
+
+func (k *Kube) GetKubeServiceByUID(u string) (*api.Service, error) {
+	svcs, err := k.GetAllKubeServices(api.NamespaceDefault)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range svcs.Items {
+		if fmt.Sprint(s.UID) == u {
+			return &s, nil
+		}
+	}
+	return nil, fmt.Errorf("No service found with UID %v", u)
 }
 
 func (k *Kube) GetNodePortForServiceByPortName(s *api.Service, portName string) (int, error) {

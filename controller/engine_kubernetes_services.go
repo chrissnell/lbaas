@@ -1,24 +1,24 @@
 package controller
 
 import (
+	"fmt"
 	"log"
 	"sync"
-	"time"
 
 	"github.com/chrissnell/lbaas/model"
-	"github.com/chrissnell/lbaas/util/log"
+
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/controller/framework"
+	"k8s.io/kubernetes/pkg/watch"
 )
 
 type ServiceStatus int
 
-const (
-	serviceAdded ServiceStatus = iota
-	serviceDeleted
-)
-
 type ServiceChangeMessage struct {
-	UID    string
-	Action ServiceStatus
+	UID         string
+	Event       *api.Service
+	EventType   watch.EventType
+	ServiceName string
 }
 
 type ServicesEngine struct {
@@ -43,38 +43,36 @@ func NewServicesEngine(m *model.Model) *ServicesEngine {
 
 func (e *ServicesEngine) start() {
 
-	ticker := time.NewTicker(time.Second * 5)
-
 	for {
-		select {
-		case <-ticker.C:
-			logger.Log("The services engine is ticking...")
 
-			vips, err := e.m.S.GetAllVIPs()
-			if err != nil {
-				log.Println("Cannot get all VIPs from etcd")
-				continue
+		// keyFunc for endpoints and services.
+		keyFunc := framework.DeletionHandlingMetaNamespaceKeyFunc
+
+		for {
+			item, _ := e.m.K.ServiceQueue.Get()
+			ev := item.(model.QueueEvent).Obj
+			evtype := item.(model.QueueEvent).ObjType
+			key, _ := keyFunc(ev)
+
+			log.Printf("SERVICE Sync triggered by  %v\n", key)
+			log.Printf("---->  [%v] UID: %v", ev.(*api.Service).Name, ev.(*api.Service).UID)
+			for _, p := range ev.(*api.Service).Spec.Ports {
+				log.Printf("----> [%v] NodePort: %v\n", p.Name, p.Name)
 			}
-
-			for _, v := range vips {
-				log.Println("VIP:", v.Name)
-			}
-
-			// sl, err := e.m.K.GetAllKubeServices("")
-			// if err != nil {
-			// 	logger.Log(fmt.Sprintln("Could not get all services:", err))
-			// }
-
-			// for _, i := range sl.Items {
-			// 	log.Println("Service:", i.Name, i.ObjectMeta.UID)
-			// }
+			log.Println("---->  Condition Type:", evtype)
 
 			msg := ServiceChangeMessage{
-				UID:    "12345",
-				Action: serviceAdded,
+				UID:         fmt.Sprint(ev.(*api.Service).UID),
+				ServiceName: ev.(*api.Service).Name,
+				Event:       ev.(*api.Service),
+				EventType:   evtype,
 			}
+
 			e.ServiceChangeChan <- msg
+
+			e.m.K.ServiceQueue.Done(ev)
 		}
+
 	}
 
 }

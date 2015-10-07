@@ -10,7 +10,7 @@ import (
 
 type Controller struct {
 	c  config.Config
-	m  *model.Model
+	M  *model.Model
 	R  *restapi.RestAPI
 	WS *restful.WebService
 	NE *NodesEngine
@@ -19,11 +19,11 @@ type Controller struct {
 }
 
 // New will create a new Controller
-func New(config config.Config, m *model.Model) *Controller {
+func NewController(config config.Config, m *model.Model) *Controller {
 
 	c := &Controller{
 		c: config,
-		m: m,
+		M: m,
 	}
 
 	// Initialize the REST API

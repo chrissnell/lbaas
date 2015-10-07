@@ -36,13 +36,13 @@ func New(filename string) *Service {
 	// Initialize our model with load balancer based on our configured type
 	switch s.Config.LoadBalancer.Kind {
 	case "f5":
-		s.model = model.New(f5.New(), s.Config)
+		s.model = model.NewModel(f5.New(), s.Config)
 	default:
-		s.model = model.New(f5.New(), s.Config)
+		s.model = model.NewModel(f5.New(), s.Config)
 	}
 
 	// Initialize the Controller
-	s.controller = controller.New(s.Config, s.model)
+	s.controller = controller.NewController(s.Config, s.model)
 
 	return s
 }

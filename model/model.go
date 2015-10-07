@@ -52,8 +52,7 @@ func New(lb LoadBalancer, c config.Config) *Model {
 	s := &Store{}
 	s = s.New(c)
 
-	k := &Kube{}
-	k, err := k.New(c, KubeWorkQueueReady)
+	k, err := NewKubeClient(c, KubeWorkQueueReady)
 	if err != nil {
 		log.Fatalln("Error creating Kubernetes client:", err)
 	}
