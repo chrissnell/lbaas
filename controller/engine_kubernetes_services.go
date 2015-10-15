@@ -38,6 +38,16 @@ func NewServicesEngine(m *model.Model) *ServicesEngine {
 	// Start up the engine
 	go e.start()
 
+	webby, _ := m.S.GetVIP("webby")
+	pm, err := GeneratePoolMembers(m, webby)
+	if err != nil {
+		log.Println("Error generating pool members:", err)
+	} else {
+		for ud, ip := range pm {
+			log.Printf("----> Pool member: %v [%v]", ud, ip)
+		}
+	}
+
 	return e
 }
 

@@ -6,6 +6,7 @@ load_balancer:
     iControl_REST_base_URL: http://127.0.0.1:8050
     username: test
     password: test
+  desired_pool_members_per_vip: 5
 etcd:
   hostname: 127.0.0.1
   port: 2379 

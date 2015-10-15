@@ -24,8 +24,9 @@ type KubernetesConfig struct {
 }
 
 type LoadBalancerConfig struct {
-	Kind     string   `yaml:"kind"`
-	F5Config F5Config `yaml:"f5,omitempty"`
+	Kind              string   `yaml:"kind"`
+	F5Config          F5Config `yaml:"f5,omitempty"`
+	PoolMembersPerVIP uint16   `yaml:"desired_pool_members_per_vip"`
 }
 
 type F5Config struct {

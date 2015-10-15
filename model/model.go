@@ -37,7 +37,7 @@ type LoadBalancer interface {
 
 // Model contains the data model with the associated etcd Client
 type Model struct {
-	c                  config.Config
+	C                  config.Config
 	LB                 LoadBalancer
 	S                  *Store
 	K                  *Kube
@@ -45,7 +45,7 @@ type Model struct {
 }
 
 // New creates a new data model with a new DB connection and Kube API client
-func New(lb LoadBalancer, c config.Config) *Model {
+func NewModel(lb LoadBalancer, c config.Config) *Model {
 
 	KubeWorkQueueReady := make(chan struct{})
 
@@ -61,7 +61,7 @@ func New(lb LoadBalancer, c config.Config) *Model {
 		S:                  s,
 		K:                  k,
 		LB:                 lb.(LoadBalancer),
-		c:                  c,
+		C:                  c,
 		KubeWorkQueueReady: KubeWorkQueueReady,
 	}
 

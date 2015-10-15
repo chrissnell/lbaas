@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"time"
 
@@ -123,6 +124,11 @@ func NewKubeClient(c config.Config, workQueueReady chan struct{}) (*Kube, error)
 	go kube.serviceController.Run(util.NeverStop)
 	go kube.nodeController.Run(util.NeverStop)
 
+	for !kube.serviceController.HasSynced() && !kube.nodeController.HasSynced() {
+		log.Println("Waiting for serviceController and nodeController to sync...")
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	// Signal that the queue is ready
 	close(workQueueReady)
 
@@ -147,17 +153,28 @@ func (k *Kube) GetKubeService(s string, namespace string) (*api.Service, error) 
 	return svc.(*api.Service), nil
 }
 
-func (k *Kube) GetAllKubeServices(namespace string) (*api.ServiceList, error) {
-	if namespace == "" {
-		namespace = api.NamespaceDefault
-	}
+func (k *Kube) GetAllKubeServices(namespace string) (*[]api.Service, error) {
+	var services []api.Service
 
 	sl, err := k.ServiceLister.List()
 	if err != nil {
 		return nil, err
 	}
 
-	return &sl, nil
+	// Our ServiceLister returns all services in all namespaces.  If we weren't
+	// passed a namespace, return slice of all services.
+	if namespace == "" {
+		return &sl.Items, nil
+	}
+
+	// Otherwise, go through the services and return only those in our namespace
+	for _, sv := range sl.Items {
+		if sv.Namespace == namespace {
+			services = append(services, sv)
+		}
+	}
+
+	return &services, nil
 }
 
 func (k *Kube) GetKubeServiceByUID(u string) (*api.Service, error) {
@@ -165,8 +182,8 @@ func (k *Kube) GetKubeServiceByUID(u string) (*api.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, s := range svcs.Items {
-		if fmt.Sprint(s.UID) == u {
+	for _, s := range *svcs {
+		if string(s.UID) == u {
 			return &s, nil
 		}
 	}
@@ -204,11 +221,7 @@ func (k *Kube) VerifyKubeService(v *VIP) (bool, error) {
 	return true, nil
 }
 
-func (k *Kube) GetAllKubeNodes(namespace string) (*api.NodeList, error) {
-	if namespace == "" {
-		namespace = api.NamespaceDefault
-	}
-
+func (k *Kube) GetAllKubeNodes() (*api.NodeList, error) {
 	nodes, err := k.NodeLister.List()
 	if err != nil {
 		return nil, err

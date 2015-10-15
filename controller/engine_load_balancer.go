@@ -31,6 +31,7 @@ func NewLBEngine(m *model.Model, nu chan NodeChangeMessage) *LBEngine {
 }
 
 func (e *LBEngine) start() {
+
 	for {
 		select {
 		case ev := <-e.nodeChangeChan:

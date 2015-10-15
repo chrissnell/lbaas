@@ -218,6 +218,8 @@ func (ra *RestAPI) validateVIPFields(v *model.VIP) (bool, error) {
 		v.KubeNamespace = api.NamespaceDefault
 	}
 
+	// TODO: actually validate them
+
 	return true, nil
 }
 

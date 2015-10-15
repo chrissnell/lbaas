@@ -55,7 +55,7 @@ func (a *Controller) APIRouter() *restful.WebService {
 	ws.Route(ws.GET("/vip/{vipid}").To(a.R.GetVIP))
 	ws.Route(ws.DELETE("/vip/{vipid}").To(a.R.DeleteVIP))
 	ws.Route(ws.PUT("/vip/{vipid}").To(a.R.UpdateVIP))
-	ws.Route(ws.PUT("/vips").To(a.R.GetAllVIPs))
+	ws.Route(ws.GET("/vips").To(a.R.GetAllVIPs))
 
 	ws.Route(ws.POST("/pool").To(a.R.CreatePool))
 	ws.Route(ws.DELETE("/pool").To(a.R.DeletePool))
