@@ -9,7 +9,8 @@ import (
 	"github.com/chrissnell/lbaas/model"
 )
 
-// GeneratePoolMembers returns a list of pool members for a given Service
+// GeneratePoolMembers uses a deterministic algorithm to pick a set of pool members
+// for a given VIP
 func GeneratePoolMembers(m *model.Model, v *model.VIP) (map[string]string, error) {
 	var matched bool
 	var iters, poolMemberCount uint16
@@ -27,12 +28,15 @@ func GeneratePoolMembers(m *model.Model, v *model.VIP) (map[string]string, error
 
 	clusterSize := uint16(len(nl.Items))
 
+	// For each node, we grab the first three digits of the UID and convert it to a uint16
+	// and map this uint16 to the node's full UID and the node's IP
 	for _, node := range nl.Items {
 		nodeInt, _ := strconv.ParseUint(string(node.UID)[:3], 16, 32)
 		nodeUIDMap[uint16(nodeInt)] = string(node.UID)
 		nodeIPMap[uint16(nodeInt)] = node.Status.Addresses[0].Address
 	}
 
+	// Take the first 8 digits of the service UID and convert to uint16
 	uid := string(ks.UID)
 	svcSeed, err := strconv.ParseUint(uid[:8], 16, 32)
 	if err != nil {
@@ -40,14 +44,21 @@ func GeneratePoolMembers(m *model.Model, v *model.VIP) (map[string]string, error
 		return nil, err
 	}
 
+	// If our Kubernetes cluster is smaller than our desired number
+	// of LB pool members, we'll use what we have.  Otherwise, we'll
+	// use what we want.
 	if clusterSize < m.C.LoadBalancer.PoolMembersPerVIP {
 		poolMemberCount = clusterSize
 	} else {
 		poolMemberCount = m.C.LoadBalancer.PoolMembersPerVIP
 	}
 
+	// Create a RNG and seed it with the uint that we grabbed from our service UID
 	rand.Seed(int64(svcSeed))
 
+	// Use our RNG to generate an int between 0 and 4095 and look for a match
+	// in our node UID lookup map.  If a match is found, add that node to the
+	// pool for this VIP.
 	start := time.Now()
 	var i uint16
 	for i = 0; i < poolMemberCount; i++ {
